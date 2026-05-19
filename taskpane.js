@@ -1,11 +1,9 @@
-// Stub per la retrocompatibilità con i vecchi sistemi Office
 Office.initialize = function () {};
 
 let myMSALObj;
 let accessToken = null;
 let foundEmails = [];
 
-// Motore principale
 Office.onReady((info) => {
     if (info.host === Office.HostType.Outlook) {
         
@@ -23,10 +21,10 @@ Office.onReady((info) => {
         
         myMSALObj = new msal.PublicClientApplication(msalConfig);
 
-        // Collegamento dei pulsanti
         document.getElementById("loginBtn").addEventListener("click", login);
         document.getElementById("searchBtn").addEventListener("click", cercaEmailIntelligente);
         document.getElementById("tagBtn").addEventListener("click", applicaTagMassa);
+        document.getElementById("folderBtn").addEventListener("click", spostaInCartellaMassa);
         document.getElementById("deleteBtn").addEventListener("click", eliminaMassa);
         document.getElementById("selectAllBtn").addEventListener("click", toggleSelezionaTutte);
     }
@@ -54,7 +52,7 @@ async function login() {
         document.getElementById("loginBtn").style.display = "none"; 
     } catch (error) {
         console.error(error);
-        aggiornaStato("⚠️ Errore di connessione. Controlla i popup!", "#a80000");
+        aggiornaStato("⚠️ Errore di connessione.", "#a80000");
     }
 }
 
@@ -69,9 +67,7 @@ async function cercaEmailIntelligente() {
     aggiornaStato("🔍 Sto cercando le mail...", "#0078d4");
     
     let logicaDiRicerca = `"${includi}"`;
-    if (escludi) {
-        logicaDiRicerca += ` NOT "${escludi}"`;
-    }
+    if (escludi) { logicaDiRicerca += ` NOT "${escludi}"`; }
 
     const urlGraph = `https://graph.microsoft.com/v1.0/me/messages?$search=${logicaDiRicerca}&$top=50&$select=id,subject,from,categories`;
 
@@ -106,7 +102,7 @@ function mostraRisultati() {
         div.className = "email-item";
         div.innerHTML = `
             <input type="checkbox" class="mail-checkbox" value="${email.id}">
-            <div style="margin-left: 8px;"><strong>${mittente}</strong><br><span style="color:#666">${email.subject || '(Senza Oggetto)'}</span></div>
+            <div style="margin-left: 8px;"><strong>${mittente}</strong><br><span style="color:#888">${email.subject || '(Senza Oggetto)'}</span></div>
         `;
         listaDiv.appendChild(div);
     });
@@ -122,6 +118,55 @@ function toggleSelezionaTutte() {
 
 function getIdSelezionati() {
     return Array.from(document.querySelectorAll(".mail-checkbox:checked")).map(cb => cb.value);
+}
+
+// IL NUOVO MOTORE PER LE CARTELLE STILE GMAIL
+async function spostaInCartellaMassa() {
+    const ids = getIdSelezionati();
+    const nomeCartella = document.getElementById("newTag").value.trim();
+    
+    if (ids.length === 0) return alert("Spunta almeno una mail dalla lista!");
+    if (!nomeCartella) return alert("Scrivi il nome della Cartella da usare!");
+    
+    aggiornaStato(`⏳ Creazione cartella e spostamento di ${ids.length} email...`, "#d83b01");
+    
+    try {
+        // 1. Controlliamo se la cartella esiste già
+        let folderId;
+        const resCheck = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders?$filter=displayName eq '${nomeCartella}'`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const dataCheck = await resCheck.json();
+        
+        if (dataCheck.value && dataCheck.value.length > 0) {
+            folderId = dataCheck.value[0].id; // Esiste già
+        } else {
+            // 2. Non esiste, la creiamo
+            const resCreate = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ displayName: nomeCartella, isHidden: false })
+            });
+            const dataCreate = await resCreate.json();
+            folderId = dataCreate.id;
+        }
+
+        // 3. Spostiamo le email selezionate nella cartella
+        for (const id of ids) {
+            await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}/move`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ destinationId: folderId })
+            });
+        }
+        
+        aggiornaStato(`🟢 Completato! Situate in "${nomeCartella}".`, "#107c41");
+        cercaEmailIntelligente(); // Aggiorna la lista
+        
+    } catch (e) {
+        console.error(e);
+        aggiornaStato("⚠️ Errore durante lo spostamento.", "#a80000");
+    }
 }
 
 async function applicaTagMassa() {
