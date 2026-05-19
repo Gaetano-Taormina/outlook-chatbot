@@ -8,7 +8,8 @@
     <script src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"></script>
     
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 15px; color: #333; background-color: #f9f9f9; }
+        /* TEMA CHIARO (Predefinito) */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 15px; color: #333; background-color: #f9f9f9; transition: all 0.3s ease; }
         h2 { color: #0078d4; margin-top: 0; font-size: 18px; border-bottom: 2px solid #0078d4; padding-bottom: 5px; }
         .section { background: white; padding: 12px; margin-bottom: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
         .guide-box { background-color: #fff8e1; border-left: 4px solid #ffb900; font-size: 11px; line-height: 1.4; }
@@ -22,9 +23,26 @@
         button.danger:hover { background-color: #8a0000; }
         button.secondary { background-color: #f3f2f1; color: #333; border: 1px solid #ccc; }
         button.secondary:hover { background-color: #edebe9; }
+        button.folder { background-color: #107c41; }
+        button.folder:hover { background-color: #0c5e31; }
         .email-item { padding: 8px; border-bottom: 1px solid #eee; font-size: 12px; display: flex; align-items: center; }
-        .email-item input { width: auto; margin-right: 10px; margin-bottom: 0; }
+        .email-item input { width: auto; margin-right: 10px; margin-bottom: 0; cursor: pointer; }
         #status { font-size: 12px; font-weight: bold; margin-bottom: 10px; text-align: center; color: #d83b01; }
+        #emailList { max-height: 150px; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; background: #fff; }
+
+        /* TEMA SCURO DINAMICO (Si attiva da solo in base al browser) */
+        @media (prefers-color-scheme: dark) {
+            body { background-color: #1f1f1f; color: #f5f5f5; }
+            .section { background: #2d2d2d; box-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+            .guide-box { background-color: #3b3115; color: #f5f5f5; border-left-color: #fbbc04; }
+            label { color: #bbb; }
+            input, select { background-color: #3b3b3b; color: white; border: 1px solid #555; }
+            input::placeholder { color: #999; }
+            button.secondary { background-color: #444; color: white; border-color: #666; }
+            button.secondary:hover { background-color: #555; }
+            .email-item { border-bottom: 1px solid #444; }
+            #emailList { background: #2d2d2d; border-color: #444; }
+        }
     </style>
 </head>
 <body>
@@ -35,9 +53,9 @@
         <strong>💡 Come si usa questo Bot?</strong>
         <ol style="margin-top: 5px; margin-bottom: 0; padding-left: 15px;">
             <li>Clicca "Connetti" per dare il permesso al bot.</li>
-            <li>Usa i filtri sotto: puoi cercare una parola (es. <em>Microsoft</em>) e <strong>vietarne</strong> un'altra (es. <em>Accesso</em>).</li>
-            <li>Spunta le mail trovate nella lista.</li>
-            <li>Scrivi un Tag (es. <em>Da Leggere</em>) o premi il tasto rosso per fare pulizia!</li>
+            <li>Cerca parole da includere o escludere (Maiuscole e minuscole non contano).</li>
+            <li>Spunta o togli la spunta manualmente dalle mail trovate.</li>
+            <li>Scrivi un nome e usa i tasti sotto per organizzare tutto!</li>
         </ol>
     </div>
 
@@ -48,10 +66,10 @@
         <label>🔍 RICERCA AVANZATA</label>
         <div class="row">
             <div class="col">
-                <input type="text" id="includeQuery" placeholder="Trova (es. Microsoft)">
+                <input type="text" id="includeQuery" placeholder="Trova (es. amazon)">
             </div>
             <div class="col">
-                <input type="text" id="excludeQuery" placeholder="Escludi (es. accesso)">
+                <input type="text" id="excludeQuery" placeholder="Escludi (es. prime)">
             </div>
         </div>
         <button id="searchBtn">Trova ed Elenca</button>
@@ -62,16 +80,17 @@
         <div style="margin-bottom: 10px;">
             <button class="secondary" id="selectAllBtn" style="width:auto; padding: 5px 10px; font-size:11px;">Seleziona / Deseleziona Tutte</button>
         </div>
-        <div id="emailList" style="max-height: 150px; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; background: #fff;"></div>
+        <div id="emailList"></div>
     </div>
 
     <div class="section">
         <label>⚡ GESTISCI LE EMAIL SPUNTATE</label>
-        <input type="text" id="newTag" placeholder="Scrivi il Tag (es. Urgente, Lavoro...)">
-        <button id="tagBtn" class="secondary">🏷️ Applica questo Tag</button>
+        <input type="text" id="newTag" placeholder="Scrivi il nome Cartella / Tag...">
+        <button id="folderBtn" class="folder">📂 Crea Cartella a sinistra e Spostale</button>
+        <button id="tagBtn" class="secondary">🏷️ Colora solo con un Tag</button>
         <button id="deleteBtn" class="danger">🗑️ Elimina per sempre</button>
     </div>
 
-    <script src="taskpane.js?v=100" type="text/javascript"></script>
+    <script src="taskpane.js?v=101" type="text/javascript"></script>
 </body>
 </html>
