@@ -9,10 +9,10 @@
     
     <style>
         :root {
-            --bg-card: rgba(255, 255, 255, 0.85); /* Effetto vetro chiaro */
+            --bg-card: rgba(255, 255, 255, 0.85);
             --text-main: #202124;
             --text-sec: #5f6368;
-            --border-color: rgba(0, 0, 0, 0.1);
+            --border-color: rgba(0, 0, 0, 0.15);
             --outlook-primary: #0078d4;
             --outlook-light: #28a8ea;
             --outlook-gradient: linear-gradient(135deg, var(--outlook-light), var(--outlook-primary));
@@ -24,16 +24,18 @@
 
         @media (prefers-color-scheme: dark) {
             :root {
-                --bg-card: rgba(30, 30, 31, 0.85); /* Effetto vetro scuro */
+                --bg-card: rgba(30, 30, 31, 0.85);
                 --text-main: #e8eaed;
                 --text-sec: #9aa0a6;
-                --border-color: rgba(255, 255, 255, 0.1);
+                --border-color: rgba(255, 255, 255, 0.15);
                 --input-bg: rgba(0, 0, 0, 0.5);
                 --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
             }
         }
 
         @keyframes slideFadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes menuPop { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        
         .animate-ui { animation: slideFadeIn 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
 
         body { 
@@ -41,18 +43,13 @@
             margin: 0; padding: 0; 
             color: var(--text-main); 
             height: 100vh; display: flex; flex-direction: column;
-            
-            /* NUOVA IMMAGINE FLUIDA AZZURRO/DARK LIBERA DA DIRITTI */
             background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
+            background-size: cover; background-position: center; background-attachment: fixed;
         }
 
         #login-screen, #app-screen {
             background: var(--bg-card);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             height: 100%;
         }
 
@@ -82,22 +79,62 @@
         .email-sender { font-weight: 600; color: var(--text-main); }
         .email-subject { color: var(--text-sec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+        /* AREA CONTROLLI */
         #control-bar {
             background: var(--bg-card); padding: 15px; border-top: 1px solid var(--border-color);
             border-top-left-radius: 20px; border-top-right-radius: 20px;
             box-shadow: 0 -4px 20px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 10px;
+            position: relative; /* Fondamentale per il menu a comparsa */
         }
+
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        #status-text { font-size: 11px; color: var(--text-sec); font-weight: 600; }
         
-        .modern-select {
-            appearance: none; background-color: transparent; color: var(--outlook-primary);
-            border: none; font-weight: 700; font-size: 14px; cursor: pointer;
-            padding: 5px 20px 5px 0; outline: none; transition: color 0.2s;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230078d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat; background-position: right center; background-size: 16px;
+        /* IL NUOVO MENU FLUTTUANTE STILE WINDOWS/OUTLOOK */
+        .fluent-menu {
+            position: absolute;
+            bottom: 70px; /* Appare sopra la barra di input */
+            left: 15px;
+            width: calc(100% - 30px);
+            background: var(--bg-card);
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(0, 120, 212, 0.5); /* Bordo Blu Outlook */
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 120, 212, 0.2);
+            z-index: 100;
+            display: flex; flex-direction: column; overflow: hidden;
+            animation: menuPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards;
         }
-        @media (prefers-color-scheme: dark) { .modern-select { color: var(--outlook-light); background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2328a8ea' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); } }
+        .fluent-menu.hidden { display: none; }
+        
+        .menu-item {
+            padding: 12px 16px; font-size: 14px; font-weight: 500; cursor: pointer;
+            border-bottom: 1px solid rgba(0, 120, 212, 0.15); /* Separatori interni leggeri */
+            transition: background 0.2s, padding-left 0.2s;
+            color: var(--text-main);
+        }
+        .menu-item:last-child { border-bottom: none; }
+        .menu-item:hover { background: rgba(0, 120, 212, 0.1); padding-left: 22px; color: var(--outlook-primary); }
+        .menu-item.danger:hover { background: rgba(217, 48, 37, 0.1); color: var(--danger); }
+
+        /* TASTO CIRCOLARE (LA BOLLA) */
+        .menu-trigger-btn {
+            width: 42px; height: 42px; border-radius: 50%;
+            border: 2px solid var(--border-color); background: transparent;
+            color: var(--text-sec); display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: all 0.3s ease; flex-shrink: 0;
+        }
+        /* Quando il menu è aperto o cliccato: si accende di Outlook Blue! */
+        .menu-trigger-btn.active {
+            border-color: var(--outlook-primary);
+            background: var(--outlook-gradient);
+            color: white;
+            box-shadow: 0 0 15px rgba(0, 120, 212, 0.5);
+            transform: scale(1.05);
+        }
 
         .input-group { display: flex; gap: 8px; align-items: center; }
+        
         .modern-input {
             flex: 1; background: var(--input-bg); color: var(--text-main);
             border: 1px solid transparent; padding: 12px 16px;
@@ -107,16 +144,15 @@
         
         .action-btn {
             background: var(--outlook-gradient); color: white; border: none; border-radius: 50%;
-            width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; 
+            width: 42px; height: 42px; display: flex; justify-content: center; align-items: center; 
             cursor: pointer; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); flex-shrink: 0;
             box-shadow: 0 2px 8px rgba(0, 120, 212, 0.3);
         }
         .action-btn:hover { transform: scale(1.1) rotate(5deg); }
         .action-btn.danger { background: var(--danger); box-shadow: 0 2px 8px rgba(217, 48, 37, 0.3); }
 
-        #status-text { font-size: 11px; color: var(--text-sec); text-align: center; margin-bottom: 5px; font-weight: 500;}
+        #activeActionLabel { font-size: 13px; font-weight: bold; color: var(--outlook-light); margin-bottom: 8px; margin-left: 5px; }
         .hidden { display: none !important; }
-        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -131,30 +167,41 @@
     <div id="app-screen">
         <div id="results-area">
             <div style="text-align: center; color: var(--text-sec); font-size: 12px; margin-top: 20px;" id="empty-state">
-                👋 Usa il menu in basso per iniziare.
+                👋 Clicca la bolla a forma di mail in basso per scegliere un'azione.
             </div>
         </div>
 
         <div id="control-bar">
-            <div id="status-text">Sistema pronto.</div>
             
+            <div id="customMenu" class="fluent-menu hidden">
+                <div class="menu-item" data-val="search">🔍 Cerca email</div>
+                <div class="menu-item" data-val="security">🛡️ Analizza Sicurezza</div>
+                <div class="menu-item" data-val="markRead">📖 Segna come Lette</div>
+                <div class="menu-item" data-val="flag">🚩 Contrassegna (Flag)</div>
+                <div class="menu-item" data-val="pdf">📄 Salva come PDF</div>
+                <div class="menu-item" data-val="open">🌐 Apri nel Browser</div>
+                <div class="menu-item" data-val="folder">📂 Sposta in cartella</div>
+                <div class="menu-item" data-val="tag">🏷️ Applica tag</div>
+                <div class="menu-item" data-val="spam">🚫 Blocca Mittente (Spam)</div>
+                <div class="menu-item danger" data-val="delete">🗑️ Elimina selezionate</div>
+            </div>
+
             <div class="top-bar">
-                <select id="actionSelector" class="modern-select">
-                    <option value="search">Cerca email</option>
-                    <option value="security">🛡️ Analizza Sicurezza</option>
-                    <option value="markRead">📖 Segna come Lette</option>
-                    <option value="flag">🚩 Contrassegna (Flag)</option>
-                    <option value="pdf">📄 Salva come PDF</option>
-                    <option value="open">🌐 Apri nel Browser</option>
-                    <option value="folder">Sposta in cartella</option>
-                    <option value="tag">Applica tag</option>
-                    <option value="spam">Blocca Mittente (Spam)</option>
-                    <option value="delete">Elimina selezionate</option>
-                </select>
+                <div id="status-text">Sistema pronto.</div>
                 <button id="selectAllBtn" class="hidden" style="background:transparent; border:none; color:var(--text-sec); font-size:12px; cursor:pointer; font-weight:bold;">Seleziona tutte</button>
             </div>
 
+            <div id="activeActionLabel">🔍 Azione: Cerca email</div>
+
             <div class="input-group animate-ui" id="inputWrapper">
+                
+                <button id="menuToggleBtn" class="menu-trigger-btn" title="Apri Menu Azioni">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                        <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                </button>
+
                 <input type="text" id="dynamicInput" class="modern-input" placeholder="Scrivi la parola da cercare...">
                 
                 <button id="executeBtn" class="action-btn">
@@ -164,6 +211,6 @@
         </div>
     </div>
 
-    <script src="taskpane.js?v=405" type="text/javascript"></script>
+    <script src="taskpane.js?v=500" type="text/javascript"></script>
 </body>
 </html>
