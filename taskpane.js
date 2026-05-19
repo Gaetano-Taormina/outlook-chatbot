@@ -1,93 +1,337 @@
-// Inizializzazione obbligatoria per Outlook
 Office.initialize = function () {};
 
+let myMSALObj;
+let accessToken = null;
+let foundEmails = [];
+let currentAction = 'search'; // L'azione di base
+
 Office.onReady((info) => {
-    // Outlook ora sa che il bot è vivo, quindi permette di mostrare la grafica
     if (info.host === Office.HostType.Outlook) {
-        
-        // Riferimenti DOM
-        const chatArea = document.getElementById("chat-area");
-        const typingIndicator = document.getElementById("typingIndicator");
-        const wifiIcon = document.getElementById("wifiIcon");
+        const msalConfig = {
+            auth: { clientId: "65c3d535-927c-4930-b0e9-0cefddf82495", authority: "https://login.microsoftonline.com/common", redirectUri: "https://gaetano-taormina.github.io/outlook-chatbot/taskpane.html" },
+            cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true }
+        };
+        myMSALObj = new msal.PublicClientApplication(msalConfig);
+
+        document.getElementById("loginBtn").addEventListener("click", login);
+        document.getElementById("executeBtn").addEventListener("click", eseguiAzioneScelta);
+        document.getElementById("selectAllBtn").addEventListener("click", toggleSelezionaTutte);
+
+        // LOGICA DEL NUOVO MENU A BOLLA
         const menuBtn = document.getElementById("menuToggleBtn");
-        const inputField = document.getElementById("dynamicInput");
-        const resetBtn = document.getElementById("resetBtn");
-        
-        // Funzione Utility: Inserisci messaggio
-        function aggiungiMessaggio(testo, tipo) {
-            const div = document.createElement("div");
-            div.className = tipo === 'bot' ? 'bot-msg' : 'user-msg';
-            div.innerHTML = testo;
-            chatArea.insertBefore(div, typingIndicator);
-            chatArea.scrollTop = chatArea.scrollHeight; // Scroll automatico
-        }
+        const customMenu = document.getElementById("customMenu");
 
-        // Funzione Utility: Mostra/Nascondi typing
-        function setTyping(mostra) {
-            typingIndicator.style.display = mostra ? "flex" : "none";
-            if(mostra) chatArea.scrollTop = chatArea.scrollHeight;
-        }
-
-        // ----------------------------------------------------
-        // SEQUENZA DI AVVIO SIMULATA (Finto Login)
-        // ----------------------------------------------------
-        setTimeout(() => {
-            // Il Wi-Fi diventa giallo: Sto connettendo...
-            wifiIcon.className = "wifi-icon wifi-yellow";
-            
-            setTimeout(() => {
-                // Wi-Fi Verde: Connesso!
-                wifiIcon.className = "wifi-icon wifi-green";
-                inputField.disabled = false;
-                inputField.placeholder = "Scrivi la tua richiesta...";
-                
-                // Il bot scrive...
-                setTyping(true);
-                
-                setTimeout(() => {
-                    setTyping(false);
-                    aggiungiMessaggio("Ciao! Con quale azione vuoi cominciare oggi?<br><br><b>Opzioni suggerite:</b><br>• Cerca email<br>• Cerca mittenti<br>• Esegui comandi / Regole", "bot");
-                    
-                    // Il tasto menu inizia a pulsare
-                    menuBtn.classList.add("menu-pulsing");
-
-                }, 1500);
-
-            }, 2000); // Finto caricamento connessione
-
-        }, 500);
-
-        // ----------------------------------------------------
-        // LOGICA TASTO RESET (Aggiorna)
-        // ----------------------------------------------------
-        resetBtn.addEventListener("click", () => {
-            // 1. Animazione freccia fulminea
-            resetBtn.classList.remove("spin-anim");
-            void resetBtn.offsetWidth; // Forza reflow
-            resetBtn.classList.add("spin-anim");
-
-            // 2. Cancella tutta la chat (tranne l'indicatore typing)
-            const messages = chatArea.querySelectorAll('.bot-msg, .user-msg');
-            messages.forEach(msg => msg.remove());
-            
-            // Ferma il menu pulsante
-            menuBtn.classList.remove("menu-pulsing");
-            
-            // 3. Riparte l'animazione di scrittura
-            setTyping(true);
-            
-            // 4. Dopo ~2 secondi riappare il benvenuto e il menu pulsa
-            setTimeout(() => {
-                setTyping(false);
-                aggiungiMessaggio("Ciao! Ripartiamo da zero. Cosa vuoi fare?<br><br><b>Opzioni suggerite:</b><br>• Cerca email<br>• Cerca mittenti<br>• Esegui comandi / Regole", "bot");
-                menuBtn.classList.add("menu-pulsing");
-            }, 2000);
+        // 1. Apri/Chiudi il menu cliccando la bolla
+        menuBtn.addEventListener("click", (e) => {
+            e.stopPropagation(); // Evita che il click chiuda subito il menu
+            customMenu.classList.toggle("hidden");
+            menuBtn.classList.toggle("active"); // Colora la bolla di fluo!
         });
 
-        // Ferma la pulsazione se l'utente clicca il menu
-        menuBtn.addEventListener("click", () => {
-            menuBtn.classList.remove("menu-pulsing");
-            aggiungiMessaggio("Hai cliccato il menu. Qui appariranno le tue opzioni.", "bot");
+        // 2. Cliccare su un'opzione del menu
+        document.querySelectorAll(".menu-item").forEach(item => {
+            item.addEventListener("click", (e) => {
+                currentAction = e.target.getAttribute("data-val");
+                document.getElementById("activeActionLabel").innerText = "Azione: " + e.target.innerText;
+                
+                // Chiude e resetta la grafica del menu
+                customMenu.classList.add("hidden");
+                menuBtn.classList.remove("active");
+                
+                aggiornaInterfaccia();
+            });
+        });
+
+        // 3. Chiudere il menu se clicchi fuori (nel vuoto)
+        document.addEventListener("click", (e) => {
+            if (!customMenu.classList.contains("hidden") && !customMenu.contains(e.target) && !menuBtn.contains(e.target)) {
+                customMenu.classList.add("hidden");
+                menuBtn.classList.remove("active");
+            }
         });
     }
 });
+
+function aggiornaStato(testo) {
+    const statusEl = document.getElementById("status-text");
+    if (statusEl) statusEl.innerText = testo;
+}
+
+function triggerAnimazione() {
+    const wrapper = document.getElementById("inputWrapper");
+    wrapper.classList.remove("animate-ui");
+    void wrapper.offsetWidth; 
+    wrapper.classList.add("animate-ui");
+}
+
+async function login() {
+    try {
+        const loginRequest = { scopes: ["user.read", "mail.readwrite"] };
+        const loginResponse = await myMSALObj.loginPopup(loginRequest);
+        
+        const tokenRequest = { scopes: ["mail.readwrite"], account: loginResponse.account };
+        const tokenResponse = await myMSALObj.acquireTokenSilent(tokenRequest);
+        accessToken = tokenResponse.accessToken;
+        
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("app-screen").style.display = "flex";
+        aggiornaStato("🟢 Connesso. Scegli l'azione cliccando la busta.");
+    } catch (error) { alert("Errore di connessione ai server Microsoft."); }
+}
+
+function aggiornaInterfaccia() {
+    const input = document.getElementById("dynamicInput");
+    const btn = document.getElementById("executeBtn");
+    
+    input.style.display = "block";
+    btn.classList.remove("danger");
+    triggerAnimazione();
+
+    const azioniSenzaTesto = ["markRead", "flag", "pdf", "open", "delete", "security"];
+    
+    if (azioniSenzaTesto.includes(currentAction)) {
+        input.style.display = "none";
+        if (currentAction === "delete") btn.classList.add("danger");
+    } else if (currentAction === "search") input.placeholder = "Scrivi la parola da cercare...";
+    else if (currentAction === "folder") input.placeholder = "Nome della cartella...";
+    else if (currentAction === "tag") input.placeholder = "Nome del Tag...";
+    else if (currentAction === "spam") input.placeholder = "Indirizzo email da bloccare...";
+    
+    input.value = "";
+}
+
+function eseguiAzioneScelta() {
+    if (currentAction === "search") cercaEmailIntelligente();
+    else if (currentAction === "folder") spostaInCartellaMassa();
+    else if (currentAction === "tag") applicaTagMassa();
+    else if (currentAction === "spam") bloccaMittente();
+    else if (currentAction === "delete") eliminaMassa();
+    else if (currentAction === "markRead") segnaLette();
+    else if (currentAction === "flag") contrassegna();
+    else if (currentAction === "pdf") salvaInPDF();
+    else if (currentAction === "open") apriNelBrowser();
+    else if (currentAction === "security") analizzaSicurezza();
+}
+
+async function cercaEmailIntelligente() {
+    if (!accessToken) return;
+    const query = document.getElementById("dynamicInput").value.trim();
+    if (!query) return alert("Scrivi qualcosa da cercare!");
+    
+    aggiornaStato("🔍 Ricerca in corso...");
+    document.getElementById("empty-state").style.display = "none";
+    
+    const urlGraph = `https://graph.microsoft.com/v1.0/me/messages?$search="${query}"&$top=50&$select=id,subject,from,webLink`;
+
+    try {
+        const response = await fetch(urlGraph, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        const data = await response.json();
+        foundEmails = data.value || [];
+        
+        mostraRisultati();
+        aggiornaStato(`Trovate ${foundEmails.length} email.`);
+        document.getElementById("selectAllBtn").classList.remove("hidden");
+    } catch (error) { aggiornaStato("⚠️ Errore di ricerca."); }
+}
+
+function mostraRisultati() {
+    const area = document.getElementById("results-area");
+    area.innerHTML = ''; 
+    
+    if (foundEmails.length === 0) {
+        area.innerHTML = `<div style="text-align: center; color: var(--text-sec); font-size: 12px; margin-top: 20px;">Nessun risultato trovato.</div>`;
+        document.getElementById("selectAllBtn").classList.add("hidden");
+        return;
+    }
+    
+    foundEmails.forEach(email => {
+        const mittente = email.from ? email.from.emailAddress.name : "Sconosciuto";
+        const emailAddress = email.from ? email.from.emailAddress.address : "";
+        const div = document.createElement("div");
+        div.className = "email-item animate-ui"; 
+        div.innerHTML = `
+            <input type="checkbox" class="mail-checkbox" value="${email.id}" data-email="${emailAddress}" data-link="${email.webLink}">
+            <div class="email-info">
+                <div class="email-sender">${mittente} <span style="font-size:10px; font-weight:normal;">${emailAddress}</span></div>
+                <div class="email-subject">${email.subject || '(Senza Oggetto)'}</div>
+            </div>
+        `;
+        area.appendChild(div);
+    });
+}
+
+function toggleSelezionaTutte() {
+    const checkboxes = document.querySelectorAll(".mail-checkbox");
+    const tuttiSelezionati = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !tuttiSelezionati);
+}
+function getIdSelezionati() { return Array.from(document.querySelectorAll(".mail-checkbox:checked")).map(cb => cb.value); }
+
+function analizzaSicurezza() {
+    const checkboxes = document.querySelectorAll(".mail-checkbox:checked");
+    if (checkboxes.length !== 1) return alert("Seleziona esattamente UNA mail per analizzarla.");
+    
+    const emailIndirizzo = checkboxes[0].getAttribute("data-email");
+    aggiornaStato(`🛡️ Analisi di: ${emailIndirizzo}...`);
+    
+    let punteggioRischio = 0;
+    const dominiFidati = ['microsoft.com', 'google.com', 'apple.com', 'amazon.it', 'paypal.com'];
+    const dominio = emailIndirizzo.split('@')[1] || "";
+    
+    if (emailIndirizzo.match(/[0-9]{4,}/)) punteggioRischio += 50; 
+    if (emailIndirizzo.includes("noreply") || emailIndirizzo.includes("update")) punteggioRischio += 20;
+    if (!dominiFidati.includes(dominio.toLowerCase())) punteggioRischio += 30; 
+
+    setTimeout(() => {
+        if (punteggioRischio >= 70) {
+            alert(`⚠️ RISCHIO ALTO: L'indirizzo ${emailIndirizzo} ha caratteristiche sospette.`);
+            aggiornaStato("⚠️ Mittente sospetto rilevato.");
+        } else {
+            alert(`✅ RISCHIO BASSO: L'indirizzo ${emailIndirizzo} sembra regolare.`);
+            aggiornaStato("✅ Sembra sicuro.");
+        }
+    }, 1000);
+}
+
+async function segnaLette() {
+    const ids = getIdSelezionati();
+    if (ids.length === 0) return alert("Seleziona le mail!");
+    aggiornaStato(`⏳ Segno ${ids.length} email come lette...`);
+    for (const id of ids) {
+        try {
+            await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isRead: true })
+            });
+        } catch(e) {}
+    }
+    aggiornaStato("🟢 Email segnate come lette!");
+}
+
+async function contrassegna() {
+    const ids = getIdSelezionati();
+    if (ids.length === 0) return alert("Seleziona le mail!");
+    aggiornaStato(`⏳ Contrassegno...`);
+    for (const id of ids) {
+        try {
+            await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ flag: { flagStatus: 'flagged' } })
+            });
+        } catch(e) {}
+    }
+    aggiornaStato("🚩 Email contrassegnate!");
+}
+
+function apriNelBrowser() {
+    const checkboxes = document.querySelectorAll(".mail-checkbox:checked");
+    if (checkboxes.length === 0) return alert("Seleziona le mail da aprire!");
+    checkboxes.forEach(cb => {
+        const link = cb.getAttribute("data-link");
+        if(link) window.open(link, '_blank');
+    });
+    aggiornaStato("🌐 Finestre aperte nel browser.");
+}
+
+async function salvaInPDF() {
+    const ids = getIdSelezionati();
+    if (ids.length !== 1) return alert("Seleziona UNA SOLA mail per salvarla.");
+    aggiornaStato(`⏳ Generazione PDF...`);
+    try {
+        const res = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${ids[0]}?$select=subject,body`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const data = await res.json();
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`<html><head><title>${data.subject}</title></head><body style="padding:20px;"><h2>${data.subject}</h2><hr/>${data.body.content}</body></html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); }, 1000);
+        aggiornaStato("📄 Scegli 'Salva come PDF' dalla stampa nativa.");
+    } catch(e) { aggiornaStato("⚠️ Errore durante la creazione del PDF."); }
+}
+
+async function spostaInCartellaMassa() {
+    const ids = getIdSelezionati();
+    const nomeCartella = document.getElementById("dynamicInput").value.trim();
+    if (ids.length === 0 || !nomeCartella) return alert("Seleziona mail e scrivi il nome della cartella!");
+    aggiornaStato(`⏳ Spostamento...`);
+    try {
+        let folderId;
+        const resCheck = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders?$filter=displayName eq '${nomeCartella}'`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        const dataCheck = await resCheck.json();
+        if (dataCheck.value && dataCheck.value.length > 0) folderId = dataCheck.value[0].id;
+        else {
+            const resCreate = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ displayName: nomeCartella, isHidden: false })
+            });
+            const dataCreate = await resCreate.json();
+            folderId = dataCreate.id;
+        }
+        for (const id of ids) {
+            await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}/move`, {
+                method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ destinationId: folderId })
+            });
+        }
+        aggiornaStato(`🟢 Spostate in "${nomeCartella}".`);
+        cercaEmailIntelligente(); 
+    } catch (e) {}
+}
+
+async function applicaTagMassa() {
+    const ids = getIdSelezionati();
+    const nuovoTag = document.getElementById("dynamicInput").value.trim();
+    if (ids.length === 0 || !nuovoTag) return alert("Seleziona mail e scrivi un Tag!");
+    aggiornaStato(`⏳ Applicazione tag...`);
+    for (const id of ids) {
+        try {
+            const mailOriginale = foundEmails.find(m => m.id === id);
+            let cat = mailOriginale.categories || [];
+            if (!cat.includes(nuovoTag)) cat.push(nuovoTag);
+            await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
+                method: 'PATCH', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ categories: cat })
+            });
+        } catch (e) { }
+    }
+    aggiornaStato("🟢 Tag applicati con successo!");
+}
+
+async function bloccaMittente() {
+    const query = document.getElementById("dynamicInput").value.trim();
+    if (!query) return alert("Scrivi l'email da bloccare!");
+    aggiornaStato("⏳ Invio allo Spam...");
+    try {
+        const urlGraph = `https://graph.microsoft.com/v1.0/me/messages?$search="from:${query}"&$top=100&$select=id`;
+        const response = await fetch(urlGraph, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        const data = await response.json();
+        const emailsToBlock = data.value || [];
+        if (emailsToBlock.length === 0) return aggiornaStato("⚠️ Nessuna mail trovata.");
+        let spostate = 0;
+        for (const email of emailsToBlock) {
+            const moveRes = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${email.id}/move`, {
+                method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ destinationId: "junkemail" })
+            });
+            if(moveRes.ok) spostate++;
+        }
+        aggiornaStato(`🚫 Mittente isolato. ${spostate} mail inviate nello Spam.`);
+        document.getElementById("dynamicInput").value = "";
+    } catch (e) {}
+}
+
+async function eliminaMassa() {
+    const ids = getIdSelezionati();
+    if (ids.length === 0) return alert("Seleziona le mail!");
+    if (!confirm(`Sei sicuro di voler eliminare ${ids.length} email?`)) return;
+    aggiornaStato(`⏳ Eliminazione in corso...`);
+    for (const id of ids) {
+        try {
+            await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } });
+        } catch (e) { }
+    }
+    aggiornaStato("🟢 Pulizia completata!");
+    cercaEmailIntelligente(); 
+}
