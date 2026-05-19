@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Gestore Email Avanzato</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js" type="text/javascript"></script>
+    <script src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 15px;
+            color: #333;
+            background-color: #f9f9f9;
+        }
+
+        h2 {
+            color: #0078d4;
+            margin-top: 0;
+            font-size: 18px;
+            border-bottom: 2px solid #0078d4;
+            padding-bottom: 5px;
+        }
+
+        .section {
+            background: white;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        .guide-box {
+            background-color: #fff8e1;
+            border-left: 4px solid #ffb900;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #666;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .col {
+            flex: 1;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 8px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #005a9e;
+        }
+
+        button.danger {
+            background-color: #a80000;
+        }
+
+        button.danger:hover {
+            background-color: #8a0000;
+        }
+
+        button.secondary {
+            background-color: #f3f2f1;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+
+        button.secondary:hover {
+            background-color: #edebe9;
+        }
+
+        .email-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+        }
+
+        .email-item input {
+            width: auto;
+            margin-right: 10px;
+            margin-bottom: 0;
+        }
+
+        #status {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+            color: #d83b01;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>🛠️ Super Pulizia Mail</h2>
+
+    <div class="section guide-box">
+        <strong>💡 Come si usa questo Bot?</strong>
+        <ol style="margin-top: 5px; margin-bottom: 0; padding-left: 15px;">
+            <li>Clicca "Connetti" per dare il permesso al bot.</li>
+            <li>Usa i filtri sotto: puoi cercare una parola (es. <em>Microsoft</em>) e <strong>vietarne</strong>
+                un'altra (es. <em>Accesso</em>).</li>
+            <li>Spunta le mail trovate nella lista.</li>
+            <li>Scrivi un Tag (es. <em>Da Leggere</em>) o premi il tasto rosso per fare pulizia!</li>
+        </ol>
+    </div>
+
+    <div id="status">🔴 Non connesso</div>
+    <button id="loginBtn">🔗 Connetti Account</button>
+
+    <div class="section">
+        <label>🔍 RICERCA AVANZATA</label>
+        <div class="row">
+            <div class="col">
+                <input type="text" id="includeQuery" placeholder="Trova (es. Microsoft)">
+            </div>
+            <div class="col">
+                <input type="text" id="excludeQuery" placeholder="Escludi (es. accesso)">
+            </div>
+        </div>
+        <button id="searchBtn">Trova ed Elenca</button>
+    </div>
+
+    <div class="section" id="resultsSection" style="display:none;">
+        <label>EMAIL TROVATE (<span id="matchCount">0</span>)</label>
+        <div style="margin-bottom: 10px;">
+            <button class="secondary" id="selectAllBtn" style="width:auto; padding: 5px 10px; font-size:11px;">Seleziona
+                / Deseleziona Tutte</button>
+        </div>
+        <div id="emailList"
+            style="max-height: 150px; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; background: #fff;">
+        </div>
+    </div>
+
+    <div class="section">
+        <label>⚡ AZIONI SULLE SELEZIONATE</label>
+        <input type="text" id
