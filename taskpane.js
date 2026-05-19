@@ -1,22 +1,27 @@
-// La tua chiave blindata e sicura
-const msalConfig = {
-    auth: {
-        clientId: "65c3d535-927c-4930-b0e9-0cefddf82495", 
-        authority: "https://login.microsoftonline.com/common",
-        redirectUri: "https://gaetano-taormina.github.io/outlook-chatbot/taskpane.html"
-    },
-    cache: {
-        cacheLocation: "localStorage",
-        storeAuthStateInCookie: true
-    }
-};
-
-const myMSALObj = new msalInstance.PublicClientApplication(msalConfig);
+let myMSALObj;
 let accessToken = null;
 let foundEmails = [];
 
+// Accendiamo PRIMA Outlook e poi Azure
 Office.onReady((info) => {
     if (info.host === Office.HostType.Outlook) {
+        
+        // Configurazione di Azure spostata qui dentro (al sicuro)
+        const msalConfig = {
+            auth: {
+                clientId: "65c3d535-927c-4930-b0e9-0cefddf82495", 
+                authority: "https://login.microsoftonline.com/common",
+                redirectUri: "https://gaetano-taormina.github.io/outlook-chatbot/taskpane.html"
+            },
+            cache: {
+                cacheLocation: "localStorage",
+                storeAuthStateInCookie: true
+            }
+        };
+        
+        myMSALObj = new msal.PublicClientApplication(msalConfig);
+
+        // Ora che tutto è caricato, colleghiamo i pulsanti
         document.getElementById("loginBtn").addEventListener("click", login);
         document.getElementById("searchBtn").addEventListener("click", cercaEmailIntelligente);
         document.getElementById("tagBtn").addEventListener("click", applicaTagMassa);
@@ -27,8 +32,10 @@ Office.onReady((info) => {
 
 function aggiornaStato(testo, colore = "#333") {
     const statusEl = document.getElementById("status");
-    statusEl.innerText = testo;
-    statusEl.style.color = colore;
+    if (statusEl) {
+        statusEl.innerText = testo;
+        statusEl.style.color = colore;
+    }
 }
 
 async function login() {
@@ -42,14 +49,13 @@ async function login() {
         accessToken = tokenResponse.accessToken;
         
         aggiornaStato("🟢 Connesso e Pronto all'uso!", "#107c41");
-        document.getElementById("loginBtn").style.display = "none"; // Nascondiamo il tasto dopo il login per pulizia
+        document.getElementById("loginBtn").style.display = "none"; 
     } catch (error) {
         console.error(error);
         aggiornaStato("⚠️ Errore di connessione", "#a80000");
     }
 }
 
-// IL NUOVO CERVELLO DI RICERCA LOGICA
 async function cercaEmailIntelligente() {
     if (!accessToken) { return alert("Devi prima connettere l'account!"); }
     
@@ -60,14 +66,11 @@ async function cercaEmailIntelligente() {
     
     aggiornaStato("🔍 Sto cercando le mail...", "#0078d4");
     
-    // Costruiamo la frase logica per i server di Microsoft
     let logicaDiRicerca = `"${includi}"`;
     if (escludi) {
-        // Se c'è una parola da escludere, aggiungiamo il comando logico NOT
         logicaDiRicerca += ` NOT "${escludi}"`;
     }
 
-    // Costruiamo l'URL finale per le API (cerca su tutta la mail: oggetto, mittente e corpo)
     const urlGraph = `https://graph.microsoft.com/v1.0/me/messages?$search=${logicaDiRicerca}&$top=50&$select=id,subject,from,categories`;
 
     try {
