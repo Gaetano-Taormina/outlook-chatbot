@@ -1,12 +1,14 @@
+// Stub per la retrocompatibilità con i vecchi sistemi Office
+Office.initialize = function () {};
+
 let myMSALObj;
 let accessToken = null;
 let foundEmails = [];
 
-// Accendiamo PRIMA Outlook e poi Azure
+// Motore principale
 Office.onReady((info) => {
     if (info.host === Office.HostType.Outlook) {
         
-        // Configurazione di Azure spostata qui dentro (al sicuro)
         const msalConfig = {
             auth: {
                 clientId: "65c3d535-927c-4930-b0e9-0cefddf82495", 
@@ -21,7 +23,7 @@ Office.onReady((info) => {
         
         myMSALObj = new msal.PublicClientApplication(msalConfig);
 
-        // Ora che tutto è caricato, colleghiamo i pulsanti
+        // Collegamento dei pulsanti
         document.getElementById("loginBtn").addEventListener("click", login);
         document.getElementById("searchBtn").addEventListener("click", cercaEmailIntelligente);
         document.getElementById("tagBtn").addEventListener("click", applicaTagMassa);
@@ -52,7 +54,7 @@ async function login() {
         document.getElementById("loginBtn").style.display = "none"; 
     } catch (error) {
         console.error(error);
-        aggiornaStato("⚠️ Errore di connessione", "#a80000");
+        aggiornaStato("⚠️ Errore di connessione. Controlla i popup!", "#a80000");
     }
 }
 
@@ -104,7 +106,7 @@ function mostraRisultati() {
         div.className = "email-item";
         div.innerHTML = `
             <input type="checkbox" class="mail-checkbox" value="${email.id}">
-            <div><strong>${mittente}</strong><br><span style="color:#666">${email.subject || '(Senza Oggetto)'}</span></div>
+            <div style="margin-left: 8px;"><strong>${mittente}</strong><br><span style="color:#666">${email.subject || '(Senza Oggetto)'}</span></div>
         `;
         listaDiv.appendChild(div);
     });
