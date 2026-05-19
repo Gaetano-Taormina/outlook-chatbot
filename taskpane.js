@@ -1,3 +1,4 @@
+// Stub per la retrocompatibilità con i vecchi sistemi Office
 Office.initialize = function () {};
 
 let myMSALObj;
@@ -21,26 +22,23 @@ Office.onReady((info) => {
         
         myMSALObj = new msal.PublicClientApplication(msalConfig);
 
+        // Collegamento eventi Login
         document.getElementById("loginBtn").addEventListener("click", login);
-        document.getElementById("searchBtn").addEventListener("click", cercaEmailIntelligente);
-        document.getElementById("tagBtn").addEventListener("click", applicaTagMassa);
-        document.getElementById("folderBtn").addEventListener("click", spostaInCartellaMassa);
-        document.getElementById("deleteBtn").addEventListener("click", eliminaMassa);
+        
+        // Logica dell'Interfaccia Dinamica
+        document.getElementById("actionSelector").addEventListener("change", aggiornaInterfaccia);
+        document.getElementById("executeBtn").addEventListener("click", eseguiAzioneScelta);
         document.getElementById("selectAllBtn").addEventListener("click", toggleSelezionaTutte);
     }
 });
 
-function aggiornaStato(testo, colore = "#333") {
-    const statusEl = document.getElementById("status");
-    if (statusEl) {
-        statusEl.innerText = testo;
-        statusEl.style.color = colore;
-    }
+function aggiornaStato(testo) {
+    const statusEl = document.getElementById("status-text");
+    if (statusEl) statusEl.innerText = testo;
 }
 
 async function login() {
     try {
-        aggiornaStato("⏳ Accesso in corso...", "#d83b01");
         const loginRequest = { scopes: ["user.read", "mail.readwrite"] };
         const loginResponse = await myMSALObj.loginPopup(loginRequest);
         
@@ -48,28 +46,62 @@ async function login() {
         const tokenResponse = await myMSALObj.acquireTokenSilent(tokenRequest);
         accessToken = tokenResponse.accessToken;
         
-        aggiornaStato("🟢 Connesso e Pronto all'uso!", "#107c41");
-        document.getElementById("loginBtn").style.display = "none"; 
+        // Transizione dalla Schermata Login all'App
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("app-screen").style.display = "flex";
+        aggiornaStato("🟢 Connesso. Seleziona un'azione e scrivi nel box.");
+        
     } catch (error) {
         console.error(error);
-        aggiornaStato("⚠️ Errore di connessione.", "#a80000");
+        alert("Errore di connessione. Controlla i popup del browser.");
     }
 }
 
-async function cercaEmailIntelligente() {
-    if (!accessToken) { return alert("Devi prima connettere l'account!"); }
+// LOGICA CAMBIO UI (Il menu a tendina)
+function aggiornaInterfaccia() {
+    const azione = document.getElementById("actionSelector").value;
+    const input = document.getElementById("dynamicInput");
+    const btn = document.getElementById("executeBtn");
     
-    const includi = document.getElementById("includeQuery").value.trim();
-    const escludi = document.getElementById("excludeQuery").value.trim();
-    
-    if (!includi) { return alert("Scrivi almeno una parola da cercare nel campo 'Trova'!"); }
-    
-    aggiornaStato("🔍 Sto cercando le mail...", "#0078d4");
-    
-    let logicaDiRicerca = `"${includi}"`;
-    if (escludi) { logicaDiRicerca += ` NOT "${escludi}"`; }
+    input.style.display = "block";
+    btn.classList.remove("danger");
 
-    const urlGraph = `https://graph.microsoft.com/v1.0/me/messages?$search=${logicaDiRicerca}&$top=50&$select=id,subject,from,categories`;
+    if (azione === "search") {
+        input.placeholder = "Scrivi la parola da cercare...";
+        input.value = "";
+    } else if (azione === "folder") {
+        input.placeholder = "Nome della cartella di destinazione...";
+        input.value = "";
+    } else if (azione === "tag") {
+        input.placeholder = "Nome del Tag da applicare...";
+        input.value = "";
+    } else if (azione === "delete") {
+        input.style.display = "none"; // Non serve scrivere nulla per eliminare
+        btn.classList.add("danger");
+    }
+}
+
+// SMISTATORE DEL PULSANTE "INVIO"
+function eseguiAzioneScelta() {
+    const azione = document.getElementById("actionSelector").value;
+    
+    if (azione === "search") cercaEmailIntelligente();
+    else if (azione === "folder") spostaInCartellaMassa();
+    else if (azione === "tag") applicaTagMassa();
+    else if (azione === "delete") eliminaMassa();
+}
+
+async function cercaEmailIntelligente() {
+    if (!accessToken) return;
+    
+    const query = document.getElementById("dynamicInput").value.trim();
+    if (!query) return alert("Scrivi qualcosa da cercare!");
+    
+    aggiornaStato("🔍 Ricerca in corso...");
+    document.getElementById("empty-state").style.display = "none";
+    
+    // Ricerca super flessibile: non distingue maiuscole/minuscole
+    const urlGraph = `https://graph.microsoft.com/v1.0/me/messages?$search="${query}"&$top=50&$select=id,subject,from`;
 
     try {
         const response = await fetch(urlGraph, {
@@ -79,20 +111,21 @@ async function cercaEmailIntelligente() {
         foundEmails = data.value || [];
         
         mostraRisultati();
-        aggiornaStato("🟢 Ricerca completata!", "#107c41");
+        aggiornaStato(`Trovate ${foundEmails.length} email.`);
+        document.getElementById("selectAllBtn").classList.remove("hidden");
     } catch (error) {
-        aggiornaStato("⚠️ Errore di ricerca.", "#a80000");
+        aggiornaStato("⚠️ Errore di ricerca.");
     }
 }
 
 function mostraRisultati() {
-    const listaDiv = document.getElementById("emailList");
-    listaDiv.innerHTML = "";
-    document.getElementById("matchCount").innerText = foundEmails.length;
+    const area = document.getElementById("results-area");
+    // Puliamo l'area (lasciando l'empty state nascosto)
+    area.innerHTML = ''; 
     
     if (foundEmails.length === 0) {
-        listaDiv.innerHTML = "<p style='padding:10px; font-size:12px; text-align:center;'>Nessuna mail trovata con questi filtri.</p>";
-        document.getElementById("resultsSection").style.display = "block";
+        area.innerHTML = `<div style="text-align: center; color: var(--text-sec); font-size: 12px; margin-top: 20px;">Nessun risultato trovato.</div>`;
+        document.getElementById("selectAllBtn").classList.add("hidden");
         return;
     }
     
@@ -102,12 +135,13 @@ function mostraRisultati() {
         div.className = "email-item";
         div.innerHTML = `
             <input type="checkbox" class="mail-checkbox" value="${email.id}">
-            <div style="margin-left: 8px;"><strong>${mittente}</strong><br><span style="color:#888">${email.subject || '(Senza Oggetto)'}</span></div>
+            <div class="email-info">
+                <div class="email-sender">${mittente}</div>
+                <div class="email-subject">${email.subject || '(Senza Oggetto)'}</div>
+            </div>
         `;
-        listaDiv.appendChild(div);
+        area.appendChild(div);
     });
-    
-    document.getElementById("resultsSection").style.display = "block";
 }
 
 function toggleSelezionaTutte() {
@@ -120,28 +154,24 @@ function getIdSelezionati() {
     return Array.from(document.querySelectorAll(".mail-checkbox:checked")).map(cb => cb.value);
 }
 
-// IL NUOVO MOTORE PER LE CARTELLE STILE GMAIL
 async function spostaInCartellaMassa() {
     const ids = getIdSelezionati();
-    const nomeCartella = document.getElementById("newTag").value.trim();
+    const nomeCartella = document.getElementById("dynamicInput").value.trim();
     
-    if (ids.length === 0) return alert("Spunta almeno una mail dalla lista!");
-    if (!nomeCartella) return alert("Scrivi il nome della Cartella da usare!");
+    if (ids.length === 0) return alert("Seleziona almeno una mail sopra!");
+    if (!nomeCartella) return alert("Scrivi il nome della Cartella!");
     
-    aggiornaStato(`⏳ Creazione cartella e spostamento di ${ids.length} email...`, "#d83b01");
+    aggiornaStato(`⏳ Creazione cartella e spostamento...`);
     
     try {
-        // 1. Controlliamo se la cartella esiste già
         let folderId;
         const resCheck = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders?$filter=displayName eq '${nomeCartella}'`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         const dataCheck = await resCheck.json();
         
-        if (dataCheck.value && dataCheck.value.length > 0) {
-            folderId = dataCheck.value[0].id; // Esiste già
-        } else {
-            // 2. Non esiste, la creiamo
+        if (dataCheck.value && dataCheck.value.length > 0) folderId = dataCheck.value[0].id;
+        else {
             const resCreate = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -151,7 +181,6 @@ async function spostaInCartellaMassa() {
             folderId = dataCreate.id;
         }
 
-        // 3. Spostiamo le email selezionate nella cartella
         for (const id of ids) {
             await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}/move`, {
                 method: 'POST',
@@ -160,59 +189,51 @@ async function spostaInCartellaMassa() {
             });
         }
         
-        aggiornaStato(`🟢 Completato! Situate in "${nomeCartella}".`, "#107c41");
-        cercaEmailIntelligente(); // Aggiorna la lista
-        
-    } catch (e) {
-        console.error(e);
-        aggiornaStato("⚠️ Errore durante lo spostamento.", "#a80000");
-    }
+        aggiornaStato(`🟢 Completato! Situate in "${nomeCartella}".`);
+        cercaEmailIntelligente(); 
+    } catch (e) { aggiornaStato("⚠️ Errore durante lo spostamento."); }
 }
 
 async function applicaTagMassa() {
     const ids = getIdSelezionati();
-    const nuovoTag = document.getElementById("newTag").value.trim();
+    const nuovoTag = document.getElementById("dynamicInput").value.trim();
     
-    if (ids.length === 0) return alert("Spunta almeno una mail dalla lista!");
-    if (!nuovoTag) return alert("Scrivi il nome del Tag che vuoi applicare!");
+    if (ids.length === 0) return alert("Seleziona almeno una mail!");
+    if (!nuovoTag) return alert("Scrivi il nome del Tag!");
     
-    aggiornaStato(`⏳ Sto colorando ${ids.length} email...`, "#d83b01");
+    aggiornaStato(`⏳ Sto colorando le email...`);
     
     for (const id of ids) {
         try {
             const mailOriginale = foundEmails.find(m => m.id === id);
-            let categorieAttuali = mailOriginale.categories || [];
-            if (!categorieAttuali.includes(nuovoTag)) categorieAttuali.push(nuovoTag);
+            let cat = mailOriginale.categories || [];
+            if (!cat.includes(nuovoTag)) cat.push(nuovoTag);
             
             await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ categories: categorieAttuali })
+                body: JSON.stringify({ categories: cat })
             });
-        } catch (e) { console.error(e); }
+        } catch (e) { }
     }
-    
-    aggiornaStato("🟢 Tag applicati con successo!", "#107c41");
-    cercaEmailIntelligente(); 
+    aggiornaStato("🟢 Tag applicati con successo!");
 }
 
 async function eliminaMassa() {
     const ids = getIdSelezionati();
-    if (ids.length === 0) return alert("Spunta le mail che vuoi eliminare!");
+    if (ids.length === 0) return alert("Seleziona le mail da eliminare!");
     
-    if (!confirm(`Sei assolutamente sicuro di voler cestinare ${ids.length} email?`)) return;
+    if (!confirm(`Sei sicuro di voler eliminare ${ids.length} email?`)) return;
     
-    aggiornaStato(`⏳ Sto cestinando ${ids.length} email...`, "#a80000");
-    
+    aggiornaStato(`⏳ Sto cestinando le email...`);
     for (const id of ids) {
         try {
             await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
-        } catch (e) { console.error(e); }
+        } catch (e) { }
     }
-    
-    aggiornaStato("🟢 Pulizia completata!", "#107c41");
+    aggiornaStato("🟢 Pulizia completata!");
     cercaEmailIntelligente(); 
 }
