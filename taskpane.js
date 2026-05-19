@@ -1,9 +1,9 @@
-// Stub per la retrocompatibilità con i vecchi sistemi Office
 Office.initialize = function () {};
 
 let myMSALObj;
 let accessToken = null;
 let foundEmails = [];
+let currentAction = 'search'; // L'azione di base
 
 Office.onReady((info) => {
     if (info.host === Office.HostType.Outlook) {
@@ -14,9 +14,41 @@ Office.onReady((info) => {
         myMSALObj = new msal.PublicClientApplication(msalConfig);
 
         document.getElementById("loginBtn").addEventListener("click", login);
-        document.getElementById("actionSelector").addEventListener("change", aggiornaInterfaccia);
         document.getElementById("executeBtn").addEventListener("click", eseguiAzioneScelta);
         document.getElementById("selectAllBtn").addEventListener("click", toggleSelezionaTutte);
+
+        // LOGICA DEL NUOVO MENU A BOLLA
+        const menuBtn = document.getElementById("menuToggleBtn");
+        const customMenu = document.getElementById("customMenu");
+
+        // 1. Apri/Chiudi il menu cliccando la bolla
+        menuBtn.addEventListener("click", (e) => {
+            e.stopPropagation(); // Evita che il click chiuda subito il menu
+            customMenu.classList.toggle("hidden");
+            menuBtn.classList.toggle("active"); // Colora la bolla di fluo!
+        });
+
+        // 2. Cliccare su un'opzione del menu
+        document.querySelectorAll(".menu-item").forEach(item => {
+            item.addEventListener("click", (e) => {
+                currentAction = e.target.getAttribute("data-val");
+                document.getElementById("activeActionLabel").innerText = "Azione: " + e.target.innerText;
+                
+                // Chiude e resetta la grafica del menu
+                customMenu.classList.add("hidden");
+                menuBtn.classList.remove("active");
+                
+                aggiornaInterfaccia();
+            });
+        });
+
+        // 3. Chiudere il menu se clicchi fuori (nel vuoto)
+        document.addEventListener("click", (e) => {
+            if (!customMenu.classList.contains("hidden") && !customMenu.contains(e.target) && !menuBtn.contains(e.target)) {
+                customMenu.classList.add("hidden");
+                menuBtn.classList.remove("active");
+            }
+        });
     }
 });
 
@@ -43,12 +75,11 @@ async function login() {
         
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("app-screen").style.display = "flex";
-        aggiornaStato("🟢 Connesso. Seleziona un'azione.");
+        aggiornaStato("🟢 Connesso. Scegli l'azione cliccando la busta.");
     } catch (error) { alert("Errore di connessione ai server Microsoft."); }
 }
 
 function aggiornaInterfaccia() {
-    const azione = document.getElementById("actionSelector").value;
     const input = document.getElementById("dynamicInput");
     const btn = document.getElementById("executeBtn");
     
@@ -58,30 +89,28 @@ function aggiornaInterfaccia() {
 
     const azioniSenzaTesto = ["markRead", "flag", "pdf", "open", "delete", "security"];
     
-    if (azioniSenzaTesto.includes(azione)) {
+    if (azioniSenzaTesto.includes(currentAction)) {
         input.style.display = "none";
-        if (azione === "delete") btn.classList.add("danger");
-    } else if (azione === "search") input.placeholder = "Scrivi la parola da cercare...";
-    else if (azione === "folder") input.placeholder = "Nome della cartella...";
-    else if (azione === "tag") input.placeholder = "Nome del Tag...";
-    else if (azione === "spam") input.placeholder = "Indirizzo email da bloccare...";
+        if (currentAction === "delete") btn.classList.add("danger");
+    } else if (currentAction === "search") input.placeholder = "Scrivi la parola da cercare...";
+    else if (currentAction === "folder") input.placeholder = "Nome della cartella...";
+    else if (currentAction === "tag") input.placeholder = "Nome del Tag...";
+    else if (currentAction === "spam") input.placeholder = "Indirizzo email da bloccare...";
     
     input.value = "";
 }
 
 function eseguiAzioneScelta() {
-    const azione = document.getElementById("actionSelector").value;
-    
-    if (azione === "search") cercaEmailIntelligente();
-    else if (azione === "folder") spostaInCartellaMassa();
-    else if (azione === "tag") applicaTagMassa();
-    else if (azione === "spam") bloccaMittente();
-    else if (azione === "delete") eliminaMassa();
-    else if (azione === "markRead") segnaLette();
-    else if (azione === "flag") contrassegna();
-    else if (azione === "pdf") salvaInPDF();
-    else if (azione === "open") apriNelBrowser();
-    else if (azione === "security") analizzaSicurezza();
+    if (currentAction === "search") cercaEmailIntelligente();
+    else if (currentAction === "folder") spostaInCartellaMassa();
+    else if (currentAction === "tag") applicaTagMassa();
+    else if (currentAction === "spam") bloccaMittente();
+    else if (currentAction === "delete") eliminaMassa();
+    else if (currentAction === "markRead") segnaLette();
+    else if (currentAction === "flag") contrassegna();
+    else if (currentAction === "pdf") salvaInPDF();
+    else if (currentAction === "open") apriNelBrowser();
+    else if (currentAction === "security") analizzaSicurezza();
 }
 
 async function cercaEmailIntelligente() {
@@ -136,7 +165,6 @@ function toggleSelezionaTutte() {
     const tuttiSelezionati = Array.from(checkboxes).every(cb => cb.checked);
     checkboxes.forEach(cb => cb.checked = !tuttiSelezionati);
 }
-
 function getIdSelezionati() { return Array.from(document.querySelectorAll(".mail-checkbox:checked")).map(cb => cb.value); }
 
 function analizzaSicurezza() {
@@ -156,7 +184,7 @@ function analizzaSicurezza() {
 
     setTimeout(() => {
         if (punteggioRischio >= 70) {
-            alert(`⚠️ RISCHIO ALTO: L'indirizzo ${emailIndirizzo} ha caratteristiche sospette. Ti consiglio di bloccarlo.`);
+            alert(`⚠️ RISCHIO ALTO: L'indirizzo ${emailIndirizzo} ha caratteristiche sospette.`);
             aggiornaStato("⚠️ Mittente sospetto rilevato.");
         } else {
             alert(`✅ RISCHIO BASSO: L'indirizzo ${emailIndirizzo} sembra regolare.`);
@@ -184,7 +212,7 @@ async function segnaLette() {
 async function contrassegna() {
     const ids = getIdSelezionati();
     if (ids.length === 0) return alert("Seleziona le mail!");
-    aggiornaStato(`⏳ Contrassegno ${ids.length} email...`);
+    aggiornaStato(`⏳ Contrassegno...`);
     for (const id of ids) {
         try {
             await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
@@ -209,22 +237,15 @@ function apriNelBrowser() {
 
 async function salvaInPDF() {
     const ids = getIdSelezionati();
-    if (ids.length !== 1) return alert("Seleziona UNA SOLA mail per salvarla in PDF.");
-    aggiornaStato(`⏳ Generazione PDF in corso...`);
+    if (ids.length !== 1) return alert("Seleziona UNA SOLA mail per salvarla.");
+    aggiornaStato(`⏳ Generazione PDF...`);
     try {
         const res = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${ids[0]}?$select=subject,body`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         const data = await res.json();
         const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-            <html><head><title>${data.subject || 'Email PDF'}</title></head>
-            <body style="font-family:sans-serif; padding:20px;">
-                <h2>${data.subject || 'Senza Oggetto'}</h2>
-                <hr/>
-                ${data.body.content}
-            </body></html>
-        `);
+        printWindow.document.write(`<html><head><title>${data.subject}</title></head><body style="padding:20px;"><h2>${data.subject}</h2><hr/>${data.body.content}</body></html>`);
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => { printWindow.print(); }, 1000);
@@ -235,14 +256,11 @@ async function salvaInPDF() {
 async function spostaInCartellaMassa() {
     const ids = getIdSelezionati();
     const nomeCartella = document.getElementById("dynamicInput").value.trim();
-    if (ids.length === 0) return alert("Seleziona almeno una mail sopra!");
-    if (!nomeCartella) return alert("Scrivi il nome della Cartella!");
-    aggiornaStato(`⏳ Spostamento in corso...`);
+    if (ids.length === 0 || !nomeCartella) return alert("Seleziona mail e scrivi il nome della cartella!");
+    aggiornaStato(`⏳ Spostamento...`);
     try {
         let folderId;
-        const resCheck = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders?$filter=displayName eq '${nomeCartella}'`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
+        const resCheck = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders?$filter=displayName eq '${nomeCartella}'`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
         const dataCheck = await resCheck.json();
         if (dataCheck.value && dataCheck.value.length > 0) folderId = dataCheck.value[0].id;
         else {
@@ -256,21 +274,18 @@ async function spostaInCartellaMassa() {
         }
         for (const id of ids) {
             await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}/move`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ destinationId: folderId })
+                method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ destinationId: folderId })
             });
         }
         aggiornaStato(`🟢 Spostate in "${nomeCartella}".`);
         cercaEmailIntelligente(); 
-    } catch (e) { aggiornaStato("⚠️ Errore spostamento."); }
+    } catch (e) {}
 }
 
 async function applicaTagMassa() {
     const ids = getIdSelezionati();
     const nuovoTag = document.getElementById("dynamicInput").value.trim();
-    if (ids.length === 0) return alert("Seleziona almeno una mail!");
-    if (!nuovoTag) return alert("Scrivi il nome del Tag!");
+    if (ids.length === 0 || !nuovoTag) return alert("Seleziona mail e scrivi un Tag!");
     aggiornaStato(`⏳ Applicazione tag...`);
     for (const id of ids) {
         try {
@@ -278,9 +293,7 @@ async function applicaTagMassa() {
             let cat = mailOriginale.categories || [];
             if (!cat.includes(nuovoTag)) cat.push(nuovoTag);
             await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
-                method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ categories: cat })
+                method: 'PATCH', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ categories: cat })
             });
         } catch (e) { }
     }
@@ -300,15 +313,13 @@ async function bloccaMittente() {
         let spostate = 0;
         for (const email of emailsToBlock) {
             const moveRes = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${email.id}/move`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ destinationId: "junkemail" })
+                method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ destinationId: "junkemail" })
             });
             if(moveRes.ok) spostate++;
         }
         aggiornaStato(`🚫 Mittente isolato. ${spostate} mail inviate nello Spam.`);
         document.getElementById("dynamicInput").value = "";
-    } catch (e) { aggiornaStato("⚠️ Errore blocco spam."); }
+    } catch (e) {}
 }
 
 async function eliminaMassa() {
@@ -318,10 +329,7 @@ async function eliminaMassa() {
     aggiornaStato(`⏳ Eliminazione in corso...`);
     for (const id of ids) {
         try {
-            await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
+            await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } });
         } catch (e) { }
     }
     aggiornaStato("🟢 Pulizia completata!");
