@@ -9,55 +9,55 @@
     
     <style>
         :root {
-            --bg-body: #f4f6f8;
-            --bg-card: #ffffff;
+            --bg-card: rgba(255, 255, 255, 0.85); /* Effetto vetro chiaro */
             --text-main: #202124;
             --text-sec: #5f6368;
-            --border-color: #e0e0e0;
-            
-            /* Colori Ufficiali Outlook */
+            --border-color: rgba(0, 0, 0, 0.1);
             --outlook-primary: #0078d4;
             --outlook-light: #28a8ea;
-            --outlook-dark: #106ebe;
             --outlook-gradient: linear-gradient(135deg, var(--outlook-light), var(--outlook-primary));
-            
             --danger: #d93025;
-            --input-bg: #f1f3f4;
-            --shadow: 0 4px 12px rgba(0, 120, 212, 0.15); /* Ombra a tema */
+            --input-bg: rgba(255, 255, 255, 0.9);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
             --radius-md: 12px;
         }
 
         @media (prefers-color-scheme: dark) {
             :root {
-                --bg-body: #131314;
-                --bg-card: #1e1e1f;
+                --bg-card: rgba(30, 30, 31, 0.85); /* Effetto vetro scuro */
                 --text-main: #e8eaed;
                 --text-sec: #9aa0a6;
-                --border-color: #3c4043;
-                --input-bg: #303134;
-                --shadow: 0 4px 15px rgba(40, 168, 234, 0.2);
+                --border-color: rgba(255, 255, 255, 0.1);
+                --input-bg: rgba(0, 0, 0, 0.5);
+                --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
             }
         }
 
-        /* Animazione di entrata fluida */
-        @keyframes slideFadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
+        @keyframes slideFadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
         .animate-ui { animation: slideFadeIn 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
 
         body { 
             font-family: 'Segoe UI', system-ui, sans-serif; 
             margin: 0; padding: 0; 
-            background-color: var(--bg-body); color: var(--text-main); 
+            color: var(--text-main); 
             height: 100vh; display: flex; flex-direction: column;
+            
+            /* LO SFONDO LAVA LAMP RILASSANTE */
+            background-image: url('https://th.bing.com/th/id/R.c400cb8268ae9a07389f1ae6fea9ced6?rik=sZhyJNnNarUGnQ&pid=ImgRaw&r=0');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
         }
 
-        #login-screen {
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            height: 100%; padding: 20px; text-align: center;
+        #login-screen, #app-screen {
+            /* EFFETTO VETRO SATINATO (Glassmorphism) */
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            height: 100%;
         }
+
+        #login-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
         .hero-icon { font-size: 40px; margin-bottom: 10px; }
         
         .login-btn {
@@ -65,18 +65,17 @@
             padding: 12px 24px; border-radius: 24px; font-weight: 600; font-size: 14px;
             cursor: pointer; box-shadow: var(--shadow); transition: all 0.2s;
         }
-        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 120, 212, 0.3); }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 120, 212, 0.4); }
 
-        #app-screen { display: none; flex-direction: column; height: 100%; }
+        #app-screen { display: none; flex-direction: column; }
         
-        #results-area {
-            flex: 1; overflow-y: auto; padding: 15px;
-            display: flex; flex-direction: column; gap: 8px;
-        }
+        #results-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+        
         .email-item {
             background: var(--bg-card); border: 1px solid var(--border-color);
             padding: 12px; border-radius: var(--radius-md);
             display: flex; align-items: center; gap: 12px; transition: transform 0.2s;
+            backdrop-filter: blur(5px);
         }
         .email-item:hover { transform: translateX(2px); border-color: var(--outlook-light); }
         .email-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--outlook-primary); }
@@ -84,25 +83,20 @@
         .email-sender { font-weight: 600; color: var(--text-main); }
         .email-subject { color: var(--text-sec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* Contenitore stile Browser/App integrata */
         #control-bar {
-            background: var(--bg-card); padding: 15px;
-            border-top: 1px solid var(--border-color);
+            background: var(--bg-card); padding: 15px; border-top: 1px solid var(--border-color);
             border-top-left-radius: 20px; border-top-right-radius: 20px;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
-            display: flex; flex-direction: column; gap: 10px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 10px;
         }
         
         .modern-select {
             appearance: none; background-color: transparent; color: var(--outlook-primary);
-            border: none; font-weight: 700; font-size: 15px; cursor: pointer;
+            border: none; font-weight: 700; font-size: 14px; cursor: pointer;
             padding: 5px 20px 5px 0; outline: none; transition: color 0.2s;
             background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230078d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
             background-repeat: no-repeat; background-position: right center; background-size: 16px;
         }
-        @media (prefers-color-scheme: dark) {
-            .modern-select { color: var(--outlook-light); background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2328a8ea' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); }
-        }
+        @media (prefers-color-scheme: dark) { .modern-select { color: var(--outlook-light); background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2328a8ea' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); } }
 
         .input-group { display: flex; gap: 8px; align-items: center; }
         .modern-input {
@@ -110,19 +104,16 @@
             border: 1px solid transparent; padding: 12px 16px;
             border-radius: 24px; font-size: 14px; outline: none; transition: all 0.3s ease;
         }
-        /* Effetto bordo dinamico sul focus */
-        .modern-input:focus { border: 1px solid var(--outlook-primary); box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15); background: var(--bg-card); }
+        .modern-input:focus { border: 1px solid var(--outlook-primary); box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15); }
         
         .action-btn {
-            background: var(--outlook-gradient); color: white;
-            border: none; border-radius: 50%; width: 40px; height: 40px;
-            display: flex; justify-content: center; align-items: center; cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); flex-shrink: 0;
+            background: var(--outlook-gradient); color: white; border: none; border-radius: 50%;
+            width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; 
+            cursor: pointer; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); flex-shrink: 0;
             box-shadow: 0 2px 8px rgba(0, 120, 212, 0.3);
         }
-        .action-btn:hover { transform: scale(1.1) rotate(5deg); box-shadow: 0 4px 12px rgba(0, 120, 212, 0.5); }
+        .action-btn:hover { transform: scale(1.1) rotate(5deg); }
         .action-btn.danger { background: var(--danger); box-shadow: 0 2px 8px rgba(217, 48, 37, 0.3); }
-        .action-btn.danger:hover { transform: scale(1.1); box-shadow: 0 4px 12px rgba(217, 48, 37, 0.5); }
 
         #status-text { font-size: 11px; color: var(--text-sec); text-align: center; margin-bottom: 5px; font-weight: 500;}
         .hidden { display: none !important; }
@@ -141,7 +132,7 @@
     <div id="app-screen">
         <div id="results-area">
             <div style="text-align: center; color: var(--text-sec); font-size: 12px; margin-top: 20px;" id="empty-state">
-                👋 Usa il menu in basso per iniziare la pulizia.
+                👋 Usa il menu in basso per iniziare.
             </div>
         </div>
 
@@ -151,12 +142,17 @@
             <div class="top-bar">
                 <select id="actionSelector" class="modern-select">
                     <option value="search">Cerca email</option>
+                    <option value="security">🛡️ Analizza Sicurezza</option>
+                    <option value="markRead">📖 Segna come Lette</option>
+                    <option value="flag">🚩 Contrassegna (Flag)</option>
+                    <option value="pdf">📄 Salva come PDF</option>
+                    <option value="open">🌐 Apri nel Browser</option>
                     <option value="folder">Sposta in cartella</option>
                     <option value="tag">Applica tag</option>
                     <option value="spam">Blocca Mittente (Spam)</option>
                     <option value="delete">Elimina selezionate</option>
                 </select>
-                <button id="selectAllBtn" class="hidden" style="background:transparent; border:none; color:var(--text-sec); font-size:12px; cursor:pointer; font-weight:bold; transition: color 0.2s;">Seleziona tutte</button>
+                <button id="selectAllBtn" class="hidden" style="background:transparent; border:none; color:var(--text-sec); font-size:12px; cursor:pointer; font-weight:bold;">Seleziona tutte</button>
             </div>
 
             <div class="input-group animate-ui" id="inputWrapper">
@@ -169,6 +165,6 @@
         </div>
     </div>
 
-    <script src="taskpane.js?v=300" type="text/javascript"></script>
+    <script src="taskpane.js?v=400" type="text/javascript"></script>
 </body>
 </html>
