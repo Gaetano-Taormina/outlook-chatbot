@@ -1,3 +1,4 @@
+// Stub per la retrocompatibilità con i vecchi sistemi Office
 Office.initialize = function () {};
 
 let myMSALObj;
@@ -83,7 +84,6 @@ function eseguiAzioneScelta() {
     else if (azione === "security") analizzaSicurezza();
 }
 
-// RICERCA AMPLIATA CON I LINK WEB
 async function cercaEmailIntelligente() {
     if (!accessToken) return;
     const query = document.getElementById("dynamicInput").value.trim();
@@ -92,7 +92,6 @@ async function cercaEmailIntelligente() {
     aggiornaStato("🔍 Ricerca in corso...");
     document.getElementById("empty-state").style.display = "none";
     
-    // NOTA: Aggiunto webLink per permettere l'apertura nel browser
     const urlGraph = `https://graph.microsoft.com/v1.0/me/messages?$search="${query}"&$top=50&$select=id,subject,from,webLink`;
 
     try {
@@ -137,11 +136,9 @@ function toggleSelezionaTutte() {
     const tuttiSelezionati = Array.from(checkboxes).every(cb => cb.checked);
     checkboxes.forEach(cb => cb.checked = !tuttiSelezionati);
 }
+
 function getIdSelezionati() { return Array.from(document.querySelectorAll(".mail-checkbox:checked")).map(cb => cb.value); }
 
-// --- NUOVE FUNZIONALITÀ ---
-
-// 1. ANALISI SICUREZZA (Euristica Base)
 function analizzaSicurezza() {
     const checkboxes = document.querySelectorAll(".mail-checkbox:checked");
     if (checkboxes.length !== 1) return alert("Seleziona esattamente UNA mail per analizzarla.");
@@ -149,32 +146,29 @@ function analizzaSicurezza() {
     const emailIndirizzo = checkboxes[0].getAttribute("data-email");
     aggiornaStato(`🛡️ Analisi di: ${emailIndirizzo}...`);
     
-    // Controlli euristici basilari
     let punteggioRischio = 0;
     const dominiFidati = ['microsoft.com', 'google.com', 'apple.com', 'amazon.it', 'paypal.com'];
     const dominio = emailIndirizzo.split('@')[1] || "";
     
-    if (emailIndirizzo.match(/[0-9]{4,}/)) punteggioRischio += 50; // Troppi numeri
+    if (emailIndirizzo.match(/[0-9]{4,}/)) punteggioRischio += 50; 
     if (emailIndirizzo.includes("noreply") || emailIndirizzo.includes("update")) punteggioRischio += 20;
-    if (!dominiFidati.includes(dominio.toLowerCase())) punteggioRischio += 30; // Dominio non noto
+    if (!dominiFidati.includes(dominio.toLowerCase())) punteggioRischio += 30; 
 
     setTimeout(() => {
         if (punteggioRischio >= 70) {
-            alert(`⚠️ RISCHIO ALTO: L'indirizzo ${emailIndirizzo} ha caratteristiche sospette (Numeri strani o dominio non verificato). Ti consiglio di usare la funzione 'Blocca Mittente (Spam)'.`);
+            alert(`⚠️ RISCHIO ALTO: L'indirizzo ${emailIndirizzo} ha caratteristiche sospette. Ti consiglio di bloccarlo.`);
             aggiornaStato("⚠️ Mittente sospetto rilevato.");
         } else {
-            alert(`✅ RISCHIO BASSO: L'indirizzo ${emailIndirizzo} sembra avere una struttura normale. Cautela comunque coi link!`);
+            alert(`✅ RISCHIO BASSO: L'indirizzo ${emailIndirizzo} sembra regolare.`);
             aggiornaStato("✅ Sembra sicuro.");
         }
     }, 1000);
 }
 
-// 2. SEGNA COME LETTE
 async function segnaLette() {
     const ids = getIdSelezionati();
     if (ids.length === 0) return alert("Seleziona le mail!");
     aggiornaStato(`⏳ Segno ${ids.length} email come lette...`);
-    
     for (const id of ids) {
         try {
             await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
@@ -187,12 +181,10 @@ async function segnaLette() {
     aggiornaStato("🟢 Email segnate come lette!");
 }
 
-// 3. CONTRASSEGNA (Bandierina)
 async function contrassegna() {
     const ids = getIdSelezionati();
     if (ids.length === 0) return alert("Seleziona le mail!");
     aggiornaStato(`⏳ Contrassegno ${ids.length} email...`);
-    
     for (const id of ids) {
         try {
             await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
@@ -205,11 +197,9 @@ async function contrassegna() {
     aggiornaStato("🚩 Email contrassegnate!");
 }
 
-// 4. APRI NEL BROWSER (Nuova Finestra)
 function apriNelBrowser() {
     const checkboxes = document.querySelectorAll(".mail-checkbox:checked");
     if (checkboxes.length === 0) return alert("Seleziona le mail da aprire!");
-    
     checkboxes.forEach(cb => {
         const link = cb.getAttribute("data-link");
         if(link) window.open(link, '_blank');
@@ -217,21 +207,15 @@ function apriNelBrowser() {
     aggiornaStato("🌐 Finestre aperte nel browser.");
 }
 
-// 5. STAMPA / SALVA COME PDF (Trucco del Programmatore)
 async function salvaInPDF() {
     const ids = getIdSelezionati();
     if (ids.length !== 1) return alert("Seleziona UNA SOLA mail per salvarla in PDF.");
-    
     aggiornaStato(`⏳ Generazione PDF in corso...`);
-    
     try {
-        // Scarichiamo il corpo completo dell'email
         const res = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${ids[0]}?$select=subject,body`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         const data = await res.json();
-        
-        // Creiamo una finestra temporanea per la stampa nativa
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <html><head><title>${data.subject || 'Email PDF'}</title></head>
@@ -242,20 +226,104 @@ async function salvaInPDF() {
             </body></html>
         `);
         printWindow.document.close();
-        // Chiamiamo la funzione di stampa del PC
         printWindow.focus();
         setTimeout(() => { printWindow.print(); }, 1000);
-        
-        aggiornaStato("📄 Scegli 'Salva come PDF' dalla finestra di stampa!");
-    } catch(e) {
-        aggiornaStato("⚠️ Errore durante la creazione del PDF.");
-    }
+        aggiornaStato("📄 Scegli 'Salva come PDF' dalla stampa nativa.");
+    } catch(e) { aggiornaStato("⚠️ Errore durante la creazione del PDF."); }
 }
 
-// VECCHIE FUNZIONI (Cartelle, Tag, Spam, Elimina)
-async function spostaInCartellaMassa() { /* Omissis: identica a prima, assicurati di mantenerla! */ }
-async function applicaTagMassa() { /* Omissis: identica a prima */ }
-async function bloccaMittente() { /* Omissis: identica a prima */ }
-async function eliminaMassa() { /* Omissis: identica a prima */ }
+async function spostaInCartellaMassa() {
+    const ids = getIdSelezionati();
+    const nomeCartella = document.getElementById("dynamicInput").value.trim();
+    if (ids.length === 0) return alert("Seleziona almeno una mail sopra!");
+    if (!nomeCartella) return alert("Scrivi il nome della Cartella!");
+    aggiornaStato(`⏳ Spostamento in corso...`);
+    try {
+        let folderId;
+        const resCheck = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders?$filter=displayName eq '${nomeCartella}'`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const dataCheck = await resCheck.json();
+        if (dataCheck.value && dataCheck.value.length > 0) folderId = dataCheck.value[0].id;
+        else {
+            const resCreate = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ displayName: nomeCartella, isHidden: false })
+            });
+            const dataCreate = await resCreate.json();
+            folderId = dataCreate.id;
+        }
+        for (const id of ids) {
+            await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}/move`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ destinationId: folderId })
+            });
+        }
+        aggiornaStato(`🟢 Spostate in "${nomeCartella}".`);
+        cercaEmailIntelligente(); 
+    } catch (e) { aggiornaStato("⚠️ Errore spostamento."); }
+}
 
-// --- [INCOLLA QUI IL RESTO DELLE FUNZIONI VECCHIE (Sposta, Tagga, Elimina, Spam) CHE GIA' AVEVAMO] ---
+async function applicaTagMassa() {
+    const ids = getIdSelezionati();
+    const nuovoTag = document.getElementById("dynamicInput").value.trim();
+    if (ids.length === 0) return alert("Seleziona almeno una mail!");
+    if (!nuovoTag) return alert("Scrivi il nome del Tag!");
+    aggiornaStato(`⏳ Applicazione tag...`);
+    for (const id of ids) {
+        try {
+            const mailOriginale = foundEmails.find(m => m.id === id);
+            let cat = mailOriginale.categories || [];
+            if (!cat.includes(nuovoTag)) cat.push(nuovoTag);
+            await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ categories: cat })
+            });
+        } catch (e) { }
+    }
+    aggiornaStato("🟢 Tag applicati con successo!");
+}
+
+async function bloccaMittente() {
+    const query = document.getElementById("dynamicInput").value.trim();
+    if (!query) return alert("Scrivi l'email da bloccare!");
+    aggiornaStato("⏳ Invio allo Spam...");
+    try {
+        const urlGraph = `https://graph.microsoft.com/v1.0/me/messages?$search="from:${query}"&$top=100&$select=id`;
+        const response = await fetch(urlGraph, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        const data = await response.json();
+        const emailsToBlock = data.value || [];
+        if (emailsToBlock.length === 0) return aggiornaStato("⚠️ Nessuna mail trovata.");
+        let spostate = 0;
+        for (const email of emailsToBlock) {
+            const moveRes = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${email.id}/move`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ destinationId: "junkemail" })
+            });
+            if(moveRes.ok) spostate++;
+        }
+        aggiornaStato(`🚫 Mittente isolato. ${spostate} mail inviate nello Spam.`);
+        document.getElementById("dynamicInput").value = "";
+    } catch (e) { aggiornaStato("⚠️ Errore blocco spam."); }
+}
+
+async function eliminaMassa() {
+    const ids = getIdSelezionati();
+    if (ids.length === 0) return alert("Seleziona le mail!");
+    if (!confirm(`Sei sicuro di voler eliminare ${ids.length} email?`)) return;
+    aggiornaStato(`⏳ Eliminazione in corso...`);
+    for (const id of ids) {
+        try {
+            await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+        } catch (e) { }
+    }
+    aggiornaStato("🟢 Pulizia completata!");
+    cercaEmailIntelligente(); 
+}
