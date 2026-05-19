@@ -1,7 +1,7 @@
 // La tua chiave blindata e sicura
 const msalConfig = {
     auth: {
-        clientId: "65c3d535-927c-4930-b0e9-0cefddf82495",
+        clientId: "65c3d535-927c-4930-b0e9-0cefddf82495", 
         authority: "https://login.microsoftonline.com/common",
         redirectUri: "https://gaetano-taormina.github.io/outlook-chatbot/taskpane.html"
     },
@@ -36,11 +36,11 @@ async function login() {
         aggiornaStato("⏳ Accesso in corso...", "#d83b01");
         const loginRequest = { scopes: ["user.read", "mail.readwrite"] };
         const loginResponse = await myMSALObj.loginPopup(loginRequest);
-
+        
         const tokenRequest = { scopes: ["mail.readwrite"], account: loginResponse.account };
         const tokenResponse = await myMSALObj.acquireTokenSilent(tokenRequest);
         accessToken = tokenResponse.accessToken;
-
+        
         aggiornaStato("🟢 Connesso e Pronto all'uso!", "#107c41");
         document.getElementById("loginBtn").style.display = "none"; // Nascondiamo il tasto dopo il login per pulizia
     } catch (error) {
@@ -52,14 +52,14 @@ async function login() {
 // IL NUOVO CERVELLO DI RICERCA LOGICA
 async function cercaEmailIntelligente() {
     if (!accessToken) { return alert("Devi prima connettere l'account!"); }
-
+    
     const includi = document.getElementById("includeQuery").value.trim();
     const escludi = document.getElementById("excludeQuery").value.trim();
-
+    
     if (!includi) { return alert("Scrivi almeno una parola da cercare nel campo 'Trova'!"); }
-
+    
     aggiornaStato("🔍 Sto cercando le mail...", "#0078d4");
-
+    
     // Costruiamo la frase logica per i server di Microsoft
     let logicaDiRicerca = `"${includi}"`;
     if (escludi) {
@@ -76,7 +76,7 @@ async function cercaEmailIntelligente() {
         });
         const data = await response.json();
         foundEmails = data.value || [];
-
+        
         mostraRisultati();
         aggiornaStato("🟢 Ricerca completata!", "#107c41");
     } catch (error) {
@@ -88,13 +88,13 @@ function mostraRisultati() {
     const listaDiv = document.getElementById("emailList");
     listaDiv.innerHTML = "";
     document.getElementById("matchCount").innerText = foundEmails.length;
-
+    
     if (foundEmails.length === 0) {
         listaDiv.innerHTML = "<p style='padding:10px; font-size:12px; text-align:center;'>Nessuna mail trovata con questi filtri.</p>";
         document.getElementById("resultsSection").style.display = "block";
         return;
     }
-
+    
     foundEmails.forEach(email => {
         const mittente = email.from ? email.from.emailAddress.name : "Sconosciuto";
         const div = document.createElement("div");
@@ -105,7 +105,7 @@ function mostraRisultati() {
         `;
         listaDiv.appendChild(div);
     });
-
+    
     document.getElementById("resultsSection").style.display = "block";
 }
 
@@ -122,18 +122,18 @@ function getIdSelezionati() {
 async function applicaTagMassa() {
     const ids = getIdSelezionati();
     const nuovoTag = document.getElementById("newTag").value.trim();
-
+    
     if (ids.length === 0) return alert("Spunta almeno una mail dalla lista!");
     if (!nuovoTag) return alert("Scrivi il nome del Tag che vuoi applicare!");
-
+    
     aggiornaStato(`⏳ Sto colorando ${ids.length} email...`, "#d83b01");
-
+    
     for (const id of ids) {
         try {
             const mailOriginale = foundEmails.find(m => m.id === id);
             let categorieAttuali = mailOriginale.categories || [];
             if (!categorieAttuali.includes(nuovoTag)) categorieAttuali.push(nuovoTag);
-
+            
             await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -141,19 +141,19 @@ async function applicaTagMassa() {
             });
         } catch (e) { console.error(e); }
     }
-
+    
     aggiornaStato("🟢 Tag applicati con successo!", "#107c41");
-    cercaEmailIntelligente();
+    cercaEmailIntelligente(); 
 }
 
 async function eliminaMassa() {
     const ids = getIdSelezionati();
     if (ids.length === 0) return alert("Spunta le mail che vuoi eliminare!");
-
+    
     if (!confirm(`Sei assolutamente sicuro di voler cestinare ${ids.length} email?`)) return;
-
+    
     aggiornaStato(`⏳ Sto cestinando ${ids.length} email...`, "#a80000");
-
+    
     for (const id of ids) {
         try {
             await fetch(`https://graph.microsoft.com/v1.0/me/messages/${id}`, {
@@ -162,7 +162,7 @@ async function eliminaMassa() {
             });
         } catch (e) { console.error(e); }
     }
-
+    
     aggiornaStato("🟢 Pulizia completata!", "#107c41");
-    cercaEmailIntelligente();
+    cercaEmailIntelligente(); 
 }
