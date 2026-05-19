@@ -1,4 +1,3 @@
-// Stub per la retrocompatibilità con i vecchi sistemi Office
 Office.initialize = function () {};
 
 let myMSALObj;
@@ -22,10 +21,7 @@ Office.onReady((info) => {
         
         myMSALObj = new msal.PublicClientApplication(msalConfig);
 
-        // Collegamento eventi Login
         document.getElementById("loginBtn").addEventListener("click", login);
-        
-        // Logica dell'Interfaccia Dinamica
         document.getElementById("actionSelector").addEventListener("change", aggiornaInterfaccia);
         document.getElementById("executeBtn").addEventListener("click", eseguiAzioneScelta);
         document.getElementById("selectAllBtn").addEventListener("click", toggleSelezionaTutte);
@@ -37,6 +33,14 @@ function aggiornaStato(testo) {
     if (statusEl) statusEl.innerText = testo;
 }
 
+// Funzione per far scattare la micro-animazione UI
+function triggerAnimazione() {
+    const wrapper = document.getElementById("inputWrapper");
+    wrapper.classList.remove("animate-ui");
+    void wrapper.offsetWidth; // Forza il reflow del browser
+    wrapper.classList.add("animate-ui");
+}
+
 async function login() {
     try {
         const loginRequest = { scopes: ["user.read", "mail.readwrite"] };
@@ -46,7 +50,6 @@ async function login() {
         const tokenResponse = await myMSALObj.acquireTokenSilent(tokenRequest);
         accessToken = tokenResponse.accessToken;
         
-        // Transizione dalla Schermata Login all'App
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("app-screen").style.display = "flex";
         aggiornaStato("🟢 Connesso. Seleziona un'azione e scrivi nel box.");
@@ -57,7 +60,6 @@ async function login() {
     }
 }
 
-// LOGICA CAMBIO UI (Il menu a tendina)
 function aggiornaInterfaccia() {
     const azione = document.getElementById("actionSelector").value;
     const input = document.getElementById("dynamicInput");
@@ -65,6 +67,7 @@ function aggiornaInterfaccia() {
     
     input.style.display = "block";
     btn.classList.remove("danger");
+    triggerAnimazione();
 
     if (azione === "search") {
         input.placeholder = "Scrivi la parola da cercare...";
@@ -75,19 +78,22 @@ function aggiornaInterfaccia() {
     } else if (azione === "tag") {
         input.placeholder = "Nome del Tag da applicare...";
         input.value = "";
+    } else if (azione === "spam") {
+        input.placeholder = "Indirizzo email da bloccare/segnalare...";
+        input.value = "";
     } else if (azione === "delete") {
-        input.style.display = "none"; // Non serve scrivere nulla per eliminare
+        input.style.display = "none";
         btn.classList.add("danger");
     }
 }
 
-// SMISTATORE DEL PULSANTE "INVIO"
 function eseguiAzioneScelta() {
     const azione = document.getElementById("actionSelector").value;
     
     if (azione === "search") cercaEmailIntelligente();
     else if (azione === "folder") spostaInCartellaMassa();
     else if (azione === "tag") applicaTagMassa();
+    else if (azione === "spam") bloccaMittente();
     else if (azione === "delete") eliminaMassa();
 }
 
@@ -100,7 +106,6 @@ async function cercaEmailIntelligente() {
     aggiornaStato("🔍 Ricerca in corso...");
     document.getElementById("empty-state").style.display = "none";
     
-    // Ricerca super flessibile: non distingue maiuscole/minuscole
     const urlGraph = `https://graph.microsoft.com/v1.0/me/messages?$search="${query}"&$top=50&$select=id,subject,from`;
 
     try {
@@ -120,7 +125,6 @@ async function cercaEmailIntelligente() {
 
 function mostraRisultati() {
     const area = document.getElementById("results-area");
-    // Puliamo l'area (lasciando l'empty state nascosto)
     area.innerHTML = ''; 
     
     if (foundEmails.length === 0) {
@@ -132,7 +136,7 @@ function mostraRisultati() {
     foundEmails.forEach(email => {
         const mittente = email.from ? email.from.emailAddress.name : "Sconosciuto";
         const div = document.createElement("div");
-        div.className = "email-item";
+        div.className = "email-item animate-ui"; // Animazione anche per le mail in arrivo
         div.innerHTML = `
             <input type="checkbox" class="mail-checkbox" value="${email.id}">
             <div class="email-info">
@@ -217,6 +221,43 @@ async function applicaTagMassa() {
         } catch (e) { }
     }
     aggiornaStato("🟢 Tag applicati con successo!");
+}
+
+// LA NUOVA FUNZIONE ANTI-SPAM
+async function bloccaMittente() {
+    const query = document.getElementById("dynamicInput").value.trim();
+    if (!query) return alert("Scrivi l'email o il nome del mittente da bloccare!");
+    
+    aggiornaStato("⏳ Spostamento mittente nello Spam in corso...");
+    
+    try {
+        // Cerca tutte le email di questo mittente
+        const urlGraph = `https://graph.microsoft.com/v1.0/me/messages?$search="from:${query}"&$top=100&$select=id`;
+        const response = await fetch(urlGraph, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        const data = await response.json();
+        const emailsToBlock = data.value || [];
+        
+        if (emailsToBlock.length === 0) {
+            return aggiornaStato("⚠️ Nessuna mail trovata per questo mittente.");
+        }
+
+        // Sposta tutto nella cartella Spam (junkemail)
+        let spostate = 0;
+        for (const email of emailsToBlock) {
+            const moveRes = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${email.id}/move`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ destinationId: "junkemail" })
+            });
+            if(moveRes.ok) spostate++;
+        }
+        
+        aggiornaStato(`🚫 ${spostate} email inviate allo Spam. Filtro istruito!`);
+        document.getElementById("dynamicInput").value = ""; // Pulisci la casella
+        
+    } catch (e) {
+        aggiornaStato("⚠️ Errore durante l'invio allo Spam.");
+    }
 }
 
 async function eliminaMassa() {
