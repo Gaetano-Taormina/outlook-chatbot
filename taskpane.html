@@ -8,24 +8,25 @@
     <script src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"></script>
     
     <style>
-        /* VARIABILI PER IL TEMA (Chiaro di default) */
         :root {
             --bg-body: #f4f6f8;
             --bg-card: #ffffff;
             --text-main: #202124;
             --text-sec: #5f6368;
             --border-color: #e0e0e0;
-            --accent: #0b57d0;
-            --accent-hover: #0842a0;
+            
+            /* Colori Ufficiali Outlook */
+            --outlook-primary: #0078d4;
+            --outlook-light: #28a8ea;
+            --outlook-dark: #106ebe;
+            --outlook-gradient: linear-gradient(135deg, var(--outlook-light), var(--outlook-primary));
+            
             --danger: #d93025;
             --input-bg: #f1f3f4;
-            --shadow: 0 4px 12px rgba(0,0,0,0.08);
-            --radius-lg: 16px;
+            --shadow: 0 4px 12px rgba(0, 120, 212, 0.15); /* Ombra a tema */
             --radius-md: 12px;
-            --radius-sm: 8px;
         }
 
-        /* TEMA SCURO (Automatico) */
         @media (prefers-color-scheme: dark) {
             :root {
                 --bg-body: #131314;
@@ -33,13 +34,18 @@
                 --text-main: #e8eaed;
                 --text-sec: #9aa0a6;
                 --border-color: #3c4043;
-                --accent: #8ab4f8;
-                --accent-hover: #aecbfa;
-                --danger: #f28b82;
                 --input-bg: #303134;
-                --shadow: 0 4px 12px rgba(0,0,0,0.5);
+                --shadow: 0 4px 15px rgba(40, 168, 234, 0.2);
             }
         }
+
+        /* Animazione di entrata fluida */
+        @keyframes slideFadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-ui { animation: slideFadeIn 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
 
         body { 
             font-family: 'Segoe UI', system-ui, sans-serif; 
@@ -48,23 +54,21 @@
             height: 100vh; display: flex; flex-direction: column;
         }
 
-        /* SCHERMATA LOGIN */
         #login-screen {
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             height: 100%; padding: 20px; text-align: center;
         }
         .hero-icon { font-size: 40px; margin-bottom: 10px; }
+        
         .login-btn {
-            background-color: var(--accent); color: white; border: none;
+            background: var(--outlook-gradient); color: white; border: none;
             padding: 12px 24px; border-radius: 24px; font-weight: 600; font-size: 14px;
             cursor: pointer; box-shadow: var(--shadow); transition: all 0.2s;
         }
-        .login-btn:hover { background-color: var(--accent-hover); transform: translateY(-1px); }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 120, 212, 0.3); }
 
-        /* SCHERMATA PRINCIPALE (Stile Chat) */
         #app-screen { display: none; flex-direction: column; height: 100%; }
         
-        /* Area Superiore: Risultati */
         #results-area {
             flex: 1; overflow-y: auto; padding: 15px;
             display: flex; flex-direction: column; gap: 8px;
@@ -72,55 +76,55 @@
         .email-item {
             background: var(--bg-card); border: 1px solid var(--border-color);
             padding: 12px; border-radius: var(--radius-md);
-            display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            display: flex; align-items: center; gap: 12px; transition: transform 0.2s;
         }
-        .email-item input[type="checkbox"] {
-            width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent);
-        }
+        .email-item:hover { transform: translateX(2px); border-color: var(--outlook-light); }
+        .email-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--outlook-primary); }
         .email-info { flex: 1; font-size: 13px; overflow: hidden; }
         .email-sender { font-weight: 600; color: var(--text-main); }
         .email-subject { color: var(--text-sec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* Area Inferiore: Box di Controllo (La "Chat") */
+        /* Contenitore stile Browser/App integrata */
         #control-bar {
             background: var(--bg-card); padding: 15px;
-            border-top: 1px solid var(--border-color); box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            border-top: 1px solid var(--border-color);
+            border-top-left-radius: 20px; border-top-right-radius: 20px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
             display: flex; flex-direction: column; gap: 10px;
         }
         
-        /* Il selettore a tendina "alla Gemini" */
         .modern-select {
-            appearance: none; background-color: transparent; color: var(--accent);
+            appearance: none; background-color: transparent; color: var(--outlook-primary);
             border: none; font-weight: 700; font-size: 15px; cursor: pointer;
-            padding: 5px 20px 5px 0; outline: none;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b57d0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            padding: 5px 20px 5px 0; outline: none; transition: color 0.2s;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230078d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
             background-repeat: no-repeat; background-position: right center; background-size: 16px;
         }
         @media (prefers-color-scheme: dark) {
-            .modern-select { background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238ab4f8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); }
+            .modern-select { color: var(--outlook-light); background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2328a8ea' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); }
         }
 
-        /* Area di Input e Bottone */
         .input-group { display: flex; gap: 8px; align-items: center; }
         .modern-input {
             flex: 1; background: var(--input-bg); color: var(--text-main);
             border: 1px solid transparent; padding: 12px 16px;
-            border-radius: 24px; font-size: 14px; outline: none; transition: border 0.2s;
+            border-radius: 24px; font-size: 14px; outline: none; transition: all 0.3s ease;
         }
-        .modern-input:focus { border: 1px solid var(--accent); }
+        /* Effetto bordo dinamico sul focus */
+        .modern-input:focus { border: 1px solid var(--outlook-primary); box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15); background: var(--bg-card); }
         
         .action-btn {
-            background: var(--accent); color: white;
+            background: var(--outlook-gradient); color: white;
             border: none; border-radius: 50%; width: 40px; height: 40px;
             display: flex; justify-content: center; align-items: center; cursor: pointer;
-            transition: all 0.2s; flex-shrink: 0;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0, 120, 212, 0.3);
         }
-        .action-btn:hover { background: var(--accent-hover); transform: scale(1.05); }
-        .action-btn.danger { background: var(--danger); }
+        .action-btn:hover { transform: scale(1.1) rotate(5deg); box-shadow: 0 4px 12px rgba(0, 120, 212, 0.5); }
+        .action-btn.danger { background: var(--danger); box-shadow: 0 2px 8px rgba(217, 48, 37, 0.3); }
+        .action-btn.danger:hover { transform: scale(1.1); box-shadow: 0 4px 12px rgba(217, 48, 37, 0.5); }
 
-        #status-text { font-size: 11px; color: var(--text-sec); text-align: center; margin-bottom: 5px;}
-        
-        /* Utilità */
+        #status-text { font-size: 11px; color: var(--text-sec); text-align: center; margin-bottom: 5px; font-weight: 500;}
         .hidden { display: none !important; }
         .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
     </style>
@@ -128,34 +132,34 @@
 <body>
 
     <div id="login-screen">
-        <div class="hero-icon">✨</div>
-        <h2 style="color: var(--text-main); margin-top: 0;">Assistente Mail</h2>
-        <p style="color: var(--text-sec); font-size: 13px; margin-bottom: 25px;">Ordina, raggruppa e pulisci la tua casella in un attimo.</p>
+        <div class="hero-icon">📩</div>
+        <h2 style="color: var(--text-main); margin-top: 0;">Outlook Power Tool</h2>
+        <p style="color: var(--text-sec); font-size: 13px; margin-bottom: 25px;">Il tuo assistente intelligente per la pulizia di massa.</p>
         <button class="login-btn" id="loginBtn">Connetti Account Microsoft</button>
     </div>
 
     <div id="app-screen">
-        
         <div id="results-area">
             <div style="text-align: center; color: var(--text-sec); font-size: 12px; margin-top: 20px;" id="empty-state">
-                👋 Ciao! Usa il menu in basso per cercare le email.
+                👋 Usa il menu in basso per iniziare la pulizia.
             </div>
-            </div>
+        </div>
 
         <div id="control-bar">
-            <div id="status-text">Pronto.</div>
+            <div id="status-text">Sistema pronto.</div>
             
             <div class="top-bar">
                 <select id="actionSelector" class="modern-select">
                     <option value="search">Cerca email</option>
                     <option value="folder">Sposta in cartella</option>
                     <option value="tag">Applica tag</option>
+                    <option value="spam">Blocca Mittente (Spam)</option>
                     <option value="delete">Elimina selezionate</option>
                 </select>
-                <button id="selectAllBtn" class="hidden" style="background:transparent; border:none; color:var(--text-sec); font-size:12px; cursor:pointer; font-weight:bold;">Seleziona tutte</button>
+                <button id="selectAllBtn" class="hidden" style="background:transparent; border:none; color:var(--text-sec); font-size:12px; cursor:pointer; font-weight:bold; transition: color 0.2s;">Seleziona tutte</button>
             </div>
 
-            <div class="input-group">
+            <div class="input-group animate-ui" id="inputWrapper">
                 <input type="text" id="dynamicInput" class="modern-input" placeholder="Scrivi la parola da cercare...">
                 
                 <button id="executeBtn" class="action-btn">
@@ -165,6 +169,6 @@
         </div>
     </div>
 
-    <script src="taskpane.js?v=200" type="text/javascript"></script>
+    <script src="taskpane.js?v=300" type="text/javascript"></script>
 </body>
 </html>
