@@ -1,96 +1,170 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestore Email Avanzato</title>
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js" type="text/javascript"></script>
     <script src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"></script>
     
     <style>
-        /* TEMA CHIARO (Predefinito) */
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 15px; color: #333; background-color: #f9f9f9; transition: all 0.3s ease; }
-        h2 { color: #0078d4; margin-top: 0; font-size: 18px; border-bottom: 2px solid #0078d4; padding-bottom: 5px; }
-        .section { background: white; padding: 12px; margin-bottom: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
-        .guide-box { background-color: #fff8e1; border-left: 4px solid #ffb900; font-size: 11px; line-height: 1.4; }
-        label { font-size: 12px; font-weight: bold; color: #666; display: block; margin-bottom: 5px; }
-        input, select { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .row { display: flex; gap: 10px; }
-        .col { flex: 1; }
-        button { width: 100%; padding: 10px; background-color: #0078d4; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-bottom: 8px; transition: background 0.2s; }
-        button:hover { background-color: #005a9e; }
-        button.danger { background-color: #a80000; }
-        button.danger:hover { background-color: #8a0000; }
-        button.secondary { background-color: #f3f2f1; color: #333; border: 1px solid #ccc; }
-        button.secondary:hover { background-color: #edebe9; }
-        button.folder { background-color: #107c41; }
-        button.folder:hover { background-color: #0c5e31; }
-        .email-item { padding: 8px; border-bottom: 1px solid #eee; font-size: 12px; display: flex; align-items: center; }
-        .email-item input { width: auto; margin-right: 10px; margin-bottom: 0; cursor: pointer; }
-        #status { font-size: 12px; font-weight: bold; margin-bottom: 10px; text-align: center; color: #d83b01; }
-        #emailList { max-height: 150px; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; background: #fff; }
-
-        /* TEMA SCURO DINAMICO (Si attiva da solo in base al browser) */
-        @media (prefers-color-scheme: dark) {
-            body { background-color: #1f1f1f; color: #f5f5f5; }
-            .section { background: #2d2d2d; box-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-            .guide-box { background-color: #3b3115; color: #f5f5f5; border-left-color: #fbbc04; }
-            label { color: #bbb; }
-            input, select { background-color: #3b3b3b; color: white; border: 1px solid #555; }
-            input::placeholder { color: #999; }
-            button.secondary { background-color: #444; color: white; border-color: #666; }
-            button.secondary:hover { background-color: #555; }
-            .email-item { border-bottom: 1px solid #444; }
-            #emailList { background: #2d2d2d; border-color: #444; }
+        /* VARIABILI PER IL TEMA (Chiaro di default) */
+        :root {
+            --bg-body: #f4f6f8;
+            --bg-card: #ffffff;
+            --text-main: #202124;
+            --text-sec: #5f6368;
+            --border-color: #e0e0e0;
+            --accent: #0b57d0;
+            --accent-hover: #0842a0;
+            --danger: #d93025;
+            --input-bg: #f1f3f4;
+            --shadow: 0 4px 12px rgba(0,0,0,0.08);
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
         }
+
+        /* TEMA SCURO (Automatico) */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-body: #131314;
+                --bg-card: #1e1e1f;
+                --text-main: #e8eaed;
+                --text-sec: #9aa0a6;
+                --border-color: #3c4043;
+                --accent: #8ab4f8;
+                --accent-hover: #aecbfa;
+                --danger: #f28b82;
+                --input-bg: #303134;
+                --shadow: 0 4px 12px rgba(0,0,0,0.5);
+            }
+        }
+
+        body { 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            margin: 0; padding: 0; 
+            background-color: var(--bg-body); color: var(--text-main); 
+            height: 100vh; display: flex; flex-direction: column;
+        }
+
+        /* SCHERMATA LOGIN */
+        #login-screen {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            height: 100%; padding: 20px; text-align: center;
+        }
+        .hero-icon { font-size: 40px; margin-bottom: 10px; }
+        .login-btn {
+            background-color: var(--accent); color: white; border: none;
+            padding: 12px 24px; border-radius: 24px; font-weight: 600; font-size: 14px;
+            cursor: pointer; box-shadow: var(--shadow); transition: all 0.2s;
+        }
+        .login-btn:hover { background-color: var(--accent-hover); transform: translateY(-1px); }
+
+        /* SCHERMATA PRINCIPALE (Stile Chat) */
+        #app-screen { display: none; flex-direction: column; height: 100%; }
+        
+        /* Area Superiore: Risultati */
+        #results-area {
+            flex: 1; overflow-y: auto; padding: 15px;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .email-item {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            padding: 12px; border-radius: var(--radius-md);
+            display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .email-item input[type="checkbox"] {
+            width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent);
+        }
+        .email-info { flex: 1; font-size: 13px; overflow: hidden; }
+        .email-sender { font-weight: 600; color: var(--text-main); }
+        .email-subject { color: var(--text-sec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Area Inferiore: Box di Controllo (La "Chat") */
+        #control-bar {
+            background: var(--bg-card); padding: 15px;
+            border-top: 1px solid var(--border-color); box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        
+        /* Il selettore a tendina "alla Gemini" */
+        .modern-select {
+            appearance: none; background-color: transparent; color: var(--accent);
+            border: none; font-weight: 700; font-size: 15px; cursor: pointer;
+            padding: 5px 20px 5px 0; outline: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b57d0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat; background-position: right center; background-size: 16px;
+        }
+        @media (prefers-color-scheme: dark) {
+            .modern-select { background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238ab4f8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); }
+        }
+
+        /* Area di Input e Bottone */
+        .input-group { display: flex; gap: 8px; align-items: center; }
+        .modern-input {
+            flex: 1; background: var(--input-bg); color: var(--text-main);
+            border: 1px solid transparent; padding: 12px 16px;
+            border-radius: 24px; font-size: 14px; outline: none; transition: border 0.2s;
+        }
+        .modern-input:focus { border: 1px solid var(--accent); }
+        
+        .action-btn {
+            background: var(--accent); color: white;
+            border: none; border-radius: 50%; width: 40px; height: 40px;
+            display: flex; justify-content: center; align-items: center; cursor: pointer;
+            transition: all 0.2s; flex-shrink: 0;
+        }
+        .action-btn:hover { background: var(--accent-hover); transform: scale(1.05); }
+        .action-btn.danger { background: var(--danger); }
+
+        #status-text { font-size: 11px; color: var(--text-sec); text-align: center; margin-bottom: 5px;}
+        
+        /* Utilità */
+        .hidden { display: none !important; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
-    <h2>🛠️ Super Pulizia Mail</h2>
-    
-    <div class="section guide-box">
-        <strong>💡 Come si usa questo Bot?</strong>
-        <ol style="margin-top: 5px; margin-bottom: 0; padding-left: 15px;">
-            <li>Clicca "Connetti" per dare il permesso al bot.</li>
-            <li>Cerca parole da includere o escludere (Maiuscole e minuscole non contano).</li>
-            <li>Spunta o togli la spunta manualmente dalle mail trovate.</li>
-            <li>Scrivi un nome e usa i tasti sotto per organizzare tutto!</li>
-        </ol>
+    <div id="login-screen">
+        <div class="hero-icon">✨</div>
+        <h2 style="color: var(--text-main); margin-top: 0;">Assistente Mail</h2>
+        <p style="color: var(--text-sec); font-size: 13px; margin-bottom: 25px;">Ordina, raggruppa e pulisci la tua casella in un attimo.</p>
+        <button class="login-btn" id="loginBtn">Connetti Account Microsoft</button>
     </div>
 
-    <div id="status">🔴 Non connesso</div>
-    <button id="loginBtn">🔗 Connetti Account</button>
-
-    <div class="section">
-        <label>🔍 RICERCA AVANZATA</label>
-        <div class="row">
-            <div class="col">
-                <input type="text" id="includeQuery" placeholder="Trova (es. amazon)">
+    <div id="app-screen">
+        
+        <div id="results-area">
+            <div style="text-align: center; color: var(--text-sec); font-size: 12px; margin-top: 20px;" id="empty-state">
+                👋 Ciao! Usa il menu in basso per cercare le email.
             </div>
-            <div class="col">
-                <input type="text" id="excludeQuery" placeholder="Escludi (es. prime)">
+            </div>
+
+        <div id="control-bar">
+            <div id="status-text">Pronto.</div>
+            
+            <div class="top-bar">
+                <select id="actionSelector" class="modern-select">
+                    <option value="search">Cerca email</option>
+                    <option value="folder">Sposta in cartella</option>
+                    <option value="tag">Applica tag</option>
+                    <option value="delete">Elimina selezionate</option>
+                </select>
+                <button id="selectAllBtn" class="hidden" style="background:transparent; border:none; color:var(--text-sec); font-size:12px; cursor:pointer; font-weight:bold;">Seleziona tutte</button>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="dynamicInput" class="modern-input" placeholder="Scrivi la parola da cercare...">
+                
+                <button id="executeBtn" class="action-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
             </div>
         </div>
-        <button id="searchBtn">Trova ed Elenca</button>
     </div>
 
-    <div class="section" id="resultsSection" style="display:none;">
-        <label>EMAIL TROVATE (<span id="matchCount">0</span>)</label>
-        <div style="margin-bottom: 10px;">
-            <button class="secondary" id="selectAllBtn" style="width:auto; padding: 5px 10px; font-size:11px;">Seleziona / Deseleziona Tutte</button>
-        </div>
-        <div id="emailList"></div>
-    </div>
-
-    <div class="section">
-        <label>⚡ GESTISCI LE EMAIL SPUNTATE</label>
-        <input type="text" id="newTag" placeholder="Scrivi il nome Cartella / Tag...">
-        <button id="folderBtn" class="folder">📂 Crea Cartella a sinistra e Spostale</button>
-        <button id="tagBtn" class="secondary">🏷️ Colora solo con un Tag</button>
-        <button id="deleteBtn" class="danger">🗑️ Elimina per sempre</button>
-    </div>
-
-    <script src="taskpane.js?v=101" type="text/javascript"></script>
+    <script src="taskpane.js?v=200" type="text/javascript"></script>
 </body>
 </html>
